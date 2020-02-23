@@ -386,11 +386,12 @@ def r0_to_dl1(input_filename=get_dataset_path('gamma_test_large.simtel.gz'),
 
     if is_simu:
         ### Reconstruct source position from disp for all events and write the result in the output file
-        for tel_name in ['LST_LSTCam']:
+        with tables.open_file(output_filename, mode='r') as f:
+            telescopes_name = f.root['dl1/event/telescope/parameters/']._v_children.keys()
+        for i, tel_name in enumerate(telescopes_name):
             focal = OpticsDescription.from_name(tel_name.split('_')[0]).equivalent_focal_length
             dl1_params_key = f'dl1/event/telescope/parameters/{tel_name}'
             add_disp_to_parameters_table(output_filename, dl1_params_key, focal)
-
     # Write energy histogram from simtel file and extra metadata
     if is_simu:
         write_simtel_energy_histogram(source, output_filename, obs_id=event.dl0.obs_id, metadata=metadata)
