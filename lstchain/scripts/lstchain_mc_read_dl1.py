@@ -67,7 +67,7 @@ def main():
         pix_y = np.array([pix['pix_y'] for pix in camera_info])*u.m
         pix_area = np.array([pix['pix_area'] for pix in camera_info])*u.m*u.m
         camera = CameraGeometry(
-            cam_id="LSiTCam", pix_id=pix_id, pix_x=pix_x, pix_y=pix_y,
+            cam_id=args.camera_name, pix_id=pix_id, pix_x=pix_x, pix_y=pix_y,
             pix_area=pix_area, pix_type='hexagonal',
             pix_rotation="100d53m34.8s", cam_rotation="0d"
         )
@@ -94,12 +94,14 @@ def main():
             length = param_table[row]['length']
             width = param_table[row]['width']
             angle = param_table[row]['psi']
+            intensity = param_table[row]['intensity']
             if ellipse is not None:
                 ellipse.remove()
             display_charge.highlight_pixels(signal_pixels, color='r', linewidth=1, alpha=.5)
             display_time.highlight_pixels(signal_pixels, color='r', linewidth=1, alpha=.5)
             ellipse = display_charge.add_ellipse(centroid, 3*length, 3*width, angle, asymmetry=0.0)
-            plt.pause(0.1)
+            axes[0].set_title(f'intensity:{intensity} sum:{np.sum(charge[signal_pixels])}')
+            plt.pause(1)
 
 
 if __name__ == '__main__':
