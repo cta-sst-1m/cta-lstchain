@@ -18,7 +18,7 @@
     "random_forest_regressor_args": {
     "max_depth": 50,
     "min_samples_leaf": 2,
-    "n_jobs": 4,
+    "n_jobs": 16,
     "n_estimators": 150,
     "bootstrap": true,
     "criterion": "mse",
@@ -37,7 +37,7 @@
   "random_forest_classifier_args": {
     "max_depth": 100,
     "min_samples_leaf": 2,
-    "n_jobs": 4,
+    "n_jobs": 16,
     "n_estimators": 100,
     "criterion": "gini",
     "min_samples_split": 2,
