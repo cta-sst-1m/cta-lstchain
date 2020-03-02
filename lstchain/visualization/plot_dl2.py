@@ -284,6 +284,7 @@ def plot_disp_vector(data):
     axes[1].set_xlabel('mc_disp')
     axes[1].set_ylabel('reco_disp')
     axes[1].set_title('disp_dy');
+    return fig, axes
 
 
 def plot_pos(data,true_hadroness=False):
@@ -386,13 +387,12 @@ def plot_importances(clf,features):
 
 def plot_ROC(clf,data,features, Energy_cut):
     # Plot ROC curve:
-    check = clf.predict_proba(data[features])[:, 0]
     accuracy = accuracy_score(data['mc_type'],
                               data['reco_type'])
     print(accuracy)
 
-    fpr_rf, tpr_rf, _ = roc_curve(1-data['gammaness'],
-                                  check)
+    fpr_rf, tpr_rf, _ = roc_curve(data['mc_type']==101,
+                                  data['gammaness'])
 
     plt.plot(fpr_rf, tpr_rf,
              label='Energy Cut: '+'%.3f'%(pow(10,Energy_cut)/1000)+' TeV')
