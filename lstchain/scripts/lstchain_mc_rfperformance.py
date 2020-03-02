@@ -90,10 +90,10 @@ def main():
         dl1_params_camera_key=args.dl1_params_camera_key
     )
 
-    gammas = filter_events(pd.read_hdf(args.gammatest, key=dl1_params_lstcam_key),
+    gammas = filter_events(pd.read_hdf(args.gammatest, key=args.dl1_params_camera_key),
                            config["events_filters"],
                            )
-    proton = filter_events(pd.read_hdf(args.protontest, key=dl1_params_lstcam_key),
+    proton = filter_events(pd.read_hdf(args.protontest, key=args.dl1_params_camera_key),
                            config["events_filters"],
                            )
 
