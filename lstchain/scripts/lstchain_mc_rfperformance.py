@@ -17,6 +17,7 @@ from lstchain.reco import utils
 import astropy.units as u
 from lstchain.io import standard_config, replace_config, read_configuration_file
 from lstchain.io.io import dl1_params_lstcam_key
+import joblib
 
 try:
     import ctaplot
@@ -26,14 +27,6 @@ except ImportError as e:
 parser = argparse.ArgumentParser(description="Train Random Forests.")
 
 # Required argument
-parser.add_argument('--gammafile', '-fg', type=str,
-                    dest='gammafile',
-                    help='path to the dl1 file of gamma events for training')
-
-parser.add_argument('--protonfile', '-fp', type=str,
-                    dest='protonfile',
-                    help='path to the dl1 file of proton events for training')
-
 parser.add_argument('--gammatest', '-gt', type=str,
                     dest='gammatest',
                     help='path to the dl1 file of gamma events for test')
@@ -42,19 +35,11 @@ parser.add_argument('--protontest', '-pt', type=str,
                     dest='protontest',
                     help='path to the dl1 file of proton events for test')
 
-# Optional arguments
-
-parser.add_argument('--storerf', '-s', action='store', type=bool,
-                    dest='storerf',
-                    help='Boolean. True for storing trained RF in 3 files'
-                    'Deafult=False, any user input will be considered True',
-                    default=True)
-
-parser.add_argument('--opath', '-o', action='store', type=str,
+parser.add_argument('--path_models', '-o', action='store', type=str,
                      dest='path_models',
-                     help='Path to store the resulting RF',
-                     default='./saved_models/')
+                     help='Path to the RF files')
 
+# Optional arguments
 parser.add_argument('--config_file', '-conf', action='store', type=str,
                     dest='config_file',
                     help='Path to a configuration file. If none is given, a standard configuration is applied',
@@ -81,14 +66,9 @@ def main():
 
     config = replace_config(standard_config, custom_config)
 
-    reg_energy, reg_disp_vector, cls_gh = dl1_to_dl2.build_models(
-        args.gammafile,
-        args.protonfile,
-        save_models=args.storerf,
-        path_models=args.path_models,
-        custom_config=config,
-        dl1_params_camera_key=args.dl1_params_camera_key
-    )
+    reg_energy = joblib.load(args.path_models + '/reg_energy.sav')
+    reg_disp_vector = joblib.load(args.path_models + '/reg_disp_vector.sav')
+    cls_gh = joblib.load(args.path_models + '/cls_gh.sav')
 
     gammas = filter_events(pd.read_hdf(args.gammatest, key=args.dl1_params_camera_key),
                            config["events_filters"],
