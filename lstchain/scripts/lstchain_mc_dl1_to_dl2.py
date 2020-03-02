@@ -20,7 +20,7 @@ from lstchain.io import read_configuration_file, standard_config, replace_config
 from lstchain.io import write_dl2_dataframe
 from lstchain.io.io import dl1_params_lstcam_key
 import numpy as np
-import astropy.units as u
+
 
 parser = argparse.ArgumentParser(description="Reconstruct events")
 
@@ -41,11 +41,16 @@ parser.add_argument('--outdir', '-o', action='store', type=str,
                      help='Path where to store the reco dl2 events',
                      default='./dl2_data')
 
-
 parser.add_argument('--config_file', '-conf', action='store', type=str,
                     dest='config_file',
                     help='Path to a configuration file. If none is given, a standard configuration is applied',
                     default=None
+                    )
+
+parser.add_argument('--cam_key', '-k', action='store', type=str,
+                    dest='dl1_params_camera_key',
+                    help='key to the camera table in the hdf5 files.',
+                    default=dl1_params_lstcam_key
                     )
 
 args = parser.parse_args()
@@ -62,7 +67,7 @@ def main():
 
     config = replace_config(standard_config, custom_config)
 
-    data = pd.read_hdf(args.datafile, key=dl1_params_lstcam_key)
+    data = pd.read_hdf(args.datafile, key=args.dl1_params_camera_key)
 
     # Dealing with pointing missing values. This happened when `ucts_time` was invalid.
     if 'alt_tel' in data.columns and 'az_tel' in data.columns \
