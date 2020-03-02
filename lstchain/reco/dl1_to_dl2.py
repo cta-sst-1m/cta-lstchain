@@ -250,6 +250,7 @@ def build_models(filegammas, fileprotons,
                  energy_min=-1,
                  custom_config={},
                  test_size=0.2,
+                 dl1_params_camera_key=dl1_params_lstcam_key
                  ):
     """Uses MC data to train Random Forests for Energy and disp_norm
     reconstruction and G/H separation. Returns 3 trained RF.
@@ -297,8 +298,8 @@ def build_models(filegammas, fileprotons,
     events_filters = config["events_filters"]
     regression_features = config["regression_features"]
 
-    df_gamma = pd.read_hdf(filegammas, key=dl1_params_lstcam_key)
-    df_proton = pd.read_hdf(fileprotons, key=dl1_params_lstcam_key)
+    df_gamma = pd.read_hdf(filegammas, key=dl1_params_camera_key)
+    df_proton = pd.read_hdf(fileprotons, key=dl1_params_camera_key)
 
     df_gamma = utils.filter_events(df_gamma, filters=events_filters)
     df_proton = utils.filter_events(df_proton, filters=events_filters)
