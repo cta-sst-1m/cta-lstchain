@@ -391,7 +391,7 @@ def plot_ROC(clf,data,features, Energy_cut):
                               data['reco_type'])
     print(accuracy)
 
-    fpr_rf, tpr_rf, _ = roc_curve(data['mc_type']==101,
+    fpr_rf, tpr_rf, _ = roc_curve(data['mc_type']==0,
                                   data['gammaness'])
 
     plt.plot(fpr_rf, tpr_rf,
