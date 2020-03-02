@@ -119,19 +119,19 @@ def main():
 
 
     plot_dl2.plot_features(dl2)
-    plt.savefig(args.path_models + '/')
+    plt.savefig(args.path_models + '/histograms.png')
 
     plot_dl2.plot_e(gammas, 10, 1.5, 3.5)
-    plt.show()
+    plt.savefig(args.path_models + '/energy_reco_gamma.png')
 
     plot_dl2.calc_resolution(gammas)
-    plt.show()
+    plt.savefig(args.path_models + '/resolution_gamma.png')
 
     plot_dl2.plot_e_resolution(gammas, 10, 1.5, 3.5)
-    plt.show()
+    plt.savefig(args.path_models + '/energy_resolution_gamma.png')
 
     plot_dl2.plot_disp_vector(gammas)
-    plt.show()
+    plt.savefig(args.path_models + '/disp_reco_gamma.png')
 
 
     try:
@@ -141,36 +141,38 @@ def main():
                             np.arctan(np.tan(src_pos_reco.az.rad)),
                             bins=50, range=(0, 1),
         )
-        plt.show()
+        plt.savefig(args.path_models + '/theta2_gamma.png')
         ctaplot.plot_angular_res_per_energy(src_pos_reco.alt.rad,
                                             np.arctan(np.tan(src_pos_reco.az.rad)),
                                             gammas.mc_alt,
                                             np.arctan(np.tan(gammas.mc_az)),
                                             gammas.mc_energy
         )
-        plt.show()
+        plt.savefig(args.path_models + '/angular_resolution_gamma.png')
     except:
         pass
 
     regression_features = config["regression_features"]
     classification_features = config["classification_features"]
 
-
-    plt.show()
     plot_dl2.plot_pos(dl2)
-    plt.show()
+    plt.savefig(args.path_models + '/position_reco.png')
     plot_dl2.plot_ROC(cls_gh, dl2, classification_features, -1)
-    plt.show()
+    plt.savefig(args.path_models + '/roc.png')
     plot_dl2.plot_importances(cls_gh, classification_features)
-    plt.show()
+    plt.savefig(args.path_models + '/features_gh.png')
     plot_dl2.plot_importances(reg_energy, regression_features)
-    plt.show()
+    plt.savefig(args.path_models + '/features_energy_reco.png')
     plot_dl2.plot_importances(reg_disp_vector, regression_features)
-    plt.show()
+    plt.savefig(args.path_models + '/features_disp_reco.png')
 
-    plt.hist(dl2[dl2['mc_type']==101]['gammaness'], bins=100)
-    plt.hist(dl2[dl2['mc_type']==0]['gammaness'], bins=100)
-    plt.show()
+    plt.hist(dl2[dl2['mc_type']==101]['gammaness'], bins=100, label="proton")
+    plt.hist(dl2[dl2['mc_type']==0]['gammaness'], bins=100, label="gamma")
+    plt.xlabel('gammaness')
+    plt.ylabel('counts')
+    plt.legend()
+    plt.savefig(args.path_models + '/gammaness.png')
+
 
 
 if __name__ == '__main__':
