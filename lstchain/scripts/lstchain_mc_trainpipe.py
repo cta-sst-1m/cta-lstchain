@@ -66,7 +66,7 @@ def main():
                             save_models=args.storerf,
                             path_models=args.path_models,
                             custom_config=config,
-                            dl1_params_camera_key = args.dl1_params_camera_key
+                            dl1_params_camera_key=args.dl1_params_camera_key
                             )
 
 
