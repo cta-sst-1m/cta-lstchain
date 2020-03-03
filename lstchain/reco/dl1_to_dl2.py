@@ -374,9 +374,11 @@ def apply_models(dl1, classifier, reg_energy, reg_disp_vector, custom_config={})
     regression_features = config["regression_features"]
     classification_features = config["classification_features"]
 
-    dl2 = dl1.copy(deep=False)
-    dl2.replace([np.inf, -np.inf], np.nan, inplace=True)
-    dl2.dropna(subset=regression_features, inplace=True)
+    bad = np.any(np.abs(dl1[regression_features]) > 1e6, axis=1) > 0
+    if np.any(bad):
+        print(f'WARNING: removing {np.sum(bad)} corrupted events.')
+    dl2 = dl1[~bad].copy()
+    del dl1
     #Reconstruction of Energy and disp_norm distance
     dl2['log_reco_energy'] = reg_energy.predict(dl2[regression_features])
     dl2['reco_energy'] = 10**(dl2['log_reco_energy']-3)
