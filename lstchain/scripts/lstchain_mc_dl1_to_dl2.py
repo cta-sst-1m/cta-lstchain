@@ -18,7 +18,7 @@ import pandas as pd
 from lstchain.reco.utils import filter_events, impute_pointing
 from lstchain.io import read_configuration_file, standard_config, replace_config
 from lstchain.io import write_dl2_dataframe
-from lstchain.io.io import dl1_params_lstcam_key
+from lstchain.io.io import dl1_params_lstcam_key, dl2_params_lstcam_key
 import numpy as np
 
 
@@ -47,10 +47,16 @@ parser.add_argument('--config_file', '-conf', action='store', type=str,
                     default=None
                     )
 
-parser.add_argument('--cam_key', '-k', action='store', type=str,
+parser.add_argument('--cam_key_dl1', '-k', action='store', type=str,
                     dest='dl1_params_camera_key',
                     help='key to the camera table in the hdf5 files.',
                     default=dl1_params_lstcam_key
+                    )
+
+parser.add_argument('--cam_key_dl2', '-k', action='store', type=str,
+                    dest='dl2_params_camera_key',
+                    help='key to the camera table in the hdf5 files.',
+                    default=dl2_params_lstcam_key
                     )
 
 args = parser.parse_args()
@@ -98,7 +104,8 @@ def main():
     outfile = args.outdir + '/dl2_' + os.path.basename(args.datafile)
 
     shutil.copyfile(args.datafile, outfile)
-    write_dl2_dataframe(dl2.astype(float), outfile)
+    write_dl2_dataframe(dl2.astype(float), outfile,
+                        dl2_params_camera_key=args.dl2_params_camera_key)
 
 
 if __name__ == '__main__':
