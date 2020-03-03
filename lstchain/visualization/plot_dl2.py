@@ -143,6 +143,7 @@ true_hadroness:
              label="Protons")
     plt.ylabel(r'# of events', fontsize=15)
     plt.xlabel(r"Time gradient")
+    plt.tight_layout()
 
 
 def plot_e(data, n_bins, emin, emax, true_hadroness=False):
@@ -201,7 +202,6 @@ def plot_e(data, n_bins, emin, emax, true_hadroness=False):
              marker='X',linestyle='None')
     plt.ylabel('STD',fontsize=24)
     plt.xlabel('$log_{10}E_{true}(GeV)$',fontsize=24)
-
 
     plt.subplots_adjust(hspace=.0)
 
@@ -270,6 +270,7 @@ def plot_disp(data, true_hadroness=False):
     plt.hist(theta2, bins=100, range=[0, 0.1], histtype=u'step')
     plt.xlabel(r'$\theta^{2}(º)$', fontsize=15)
     plt.ylabel(r'# of events', fontsize=15)
+    plt.tight_layout()
 
 
 def plot_disp_vector(data):
@@ -284,6 +285,7 @@ def plot_disp_vector(data):
     axes[1].set_xlabel('mc_disp')
     axes[1].set_ylabel('reco_disp')
     axes[1].set_title('disp_dy');
+    plt.tight_layout()
     return fig, axes
 
 
@@ -356,6 +358,7 @@ def plot_pos(data,true_hadroness=False):
     plt.title("Reconstructed position Gammas ")
     plt.xlabel("x (m)")
     plt.ylabel("y (m)")
+    plt.tight_layout()
 
 
 def plot_importances(clf,features):
@@ -381,11 +384,13 @@ def plot_importances(clf,features):
             importances[indices],
             color="r", yerr=std[indices], align="center")
     plt.xticks(range(len(features)),
-               ordered_features)
+               ordered_features, rotation='vertical')
     plt.xlim([-1,
               len(features)])
+    plt.tight_layout()
 
 def plot_ROC(clf,data,features, Energy_cut):
+
     # Plot ROC curve:
     accuracy = accuracy_score(data['mc_type'],
                               data['reco_type'])
@@ -401,9 +406,9 @@ def plot_ROC(clf,data,features, Energy_cut):
     plt.ylabel('True positive rate',
                fontsize=15)
     plt.legend(loc='best')
+    plt.tight_layout()
 
 def plot_e_resolution(data, n_bins, emin, emax):
-
 
     #delta_e = ((data['log_mc_energy']-data['reco_energy'])*np.log(10))
     delta_e = np.log(10**data['reco_energy']/10**data['log_mc_energy'])
@@ -475,5 +480,6 @@ def calc_resolution(data):
     sigma = bins[idx+x-1]
     plt.plot(bins,integral*scipy.stats.norm.pdf(bins, mu, sigma),linewidth=4,color='red',linestyle='--')
     plt.xlabel("$log(E_{rec}/E_{true})$")
+    plt.tight_layout()
     print(mu,sigma)
     return mu,sigma
