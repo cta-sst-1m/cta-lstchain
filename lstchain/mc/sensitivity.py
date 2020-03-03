@@ -51,7 +51,8 @@ def read_sim_par(dl1_file):
     return par
 
 
-def process_mc(dl1_file, dl2_file, mc_type):
+def process_mc(dl1_file, dl2_file, mc_type,
+               dl2_params_camera_key=dl2_params_lstcam_key):
     """
     Process the MC simulated and reconstructed to extract the relevant
     parameters to compute the sensitivity
@@ -73,7 +74,7 @@ def process_mc(dl1_file, dl2_file, mc_type):
     """
     sim_par = read_sim_par(dl1_file)
 
-    events = pd.read_hdf(dl2_file, key = dl2_params_lstcam_key)
+    events = pd.read_hdf(dl2_file, key = dl2_params_camera_key)
 
     # Filters:
     # TO DO: These cuts must be given in a configuration file
@@ -294,7 +295,8 @@ def find_best_cuts_sensitivity(simtelfile_gammas, simtelfile_protons,
          dl2_file_g, dl2_file_p,
          nfiles_gammas, nfiles_protons,
          n_bins_energy, n_bins_gammaness, n_bins_theta2, noff,
-         obstime = 50 * 3600 * u.s):
+         obstime = 50 * 3600 * u.s,
+         dl2_params_camera_key=dl2_params_lstcam_key):
 
     """
     Main function to find the best cuts to calculate the sensitivity
@@ -322,10 +324,14 @@ def find_best_cuts_sensitivity(simtelfile_gammas, simtelfile_protons,
     """
 
     # Read simulated and reconstructed values
-    gammaness_g, theta2_g, e_reco_g, e_true_g, mc_par_g, events_g = process_mc(simtelfile_gammas,
-                                                                               dl2_file_g, 'gamma')
-    gammaness_p, angdist2_p, e_reco_p, e_true_p, mc_par_p, events_p = process_mc(simtelfile_protons,
-                                                                                 dl2_file_p, 'proton')
+    gammaness_g, theta2_g, e_reco_g, e_true_g, mc_par_g, events_g = process_mc(
+        simtelfile_gammas,dl2_file_g, 'gamma',
+        dl2_params_camera_key=dl2_params_camera_key
+    )
+    gammaness_p, angdist2_p, e_reco_p, e_true_p, mc_par_p, events_p = process_mc(
+        simtelfile_protons, dl2_file_p, 'proton',
+        dl2_params_camera_key=dl2_params_camera_key
+    )
 
     mc_par_g['sim_ev'] = mc_par_g['sim_ev'] * nfiles_gammas
     mc_par_p['sim_ev'] = mc_par_p['sim_ev'] * nfiles_protons
@@ -540,7 +546,8 @@ def sensitivity(simtelfile_gammas, simtelfile_protons,
                 dl2_file_g, dl2_file_p,
                 nfiles_gammas, nfiles_protons,
                 n_bins_energy, gcut, tcut, noff,
-                obstime=50 * 3600 * u.s):
+                obstime=50 * 3600 * u.s,
+                dl2_params_camera_key=dl2_params_lstcam_key):
     """
     Main function to calculate the sensitivity given a MC dataset
 
@@ -566,10 +573,14 @@ def sensitivity(simtelfile_gammas, simtelfile_protons,
     """
 
     # Read simulated and reconstructed values
-    gammaness_g, theta2_g, e_reco_g, e_true_g, mc_par_g, events_g = process_mc(simtelfile_gammas,
-                                                                               dl2_file_g, 'gamma')
-    gammaness_p, angdist2_p, e_reco_p, e_true_p, mc_par_p, events_p = process_mc(simtelfile_protons,
-                                                                                 dl2_file_p, 'proton')
+    gammaness_g, theta2_g, e_reco_g, e_true_g, mc_par_g, events_g = process_mc(
+        simtelfile_gammas, dl2_file_g, 'gamma',
+        dl2_params_camera_key=dl2_params_camera_key
+    )
+    gammaness_p, angdist2_p, e_reco_p, e_true_p, mc_par_p, events_p = process_mc(
+        simtelfile_protons, dl2_file_p, 'proton',
+        dl2_params_camera_key=dl2_params_camera_key
+    )
 
     mc_par_g['sim_ev'] = mc_par_g['sim_ev'] * nfiles_gammas
     mc_par_p['sim_ev'] = mc_par_p['sim_ev'] * nfiles_protons

@@ -9,6 +9,7 @@ from lstchain.visualization import plot_dl2
 from lstchain.reco import utils
 import seaborn as sns
 from lstchain.io import read_simu_info_merged_hdf5
+from lstchain.io.io import dl2_params_lstcam_key
 
 parser = argparse.ArgumentParser(description="Compute Sensitivity Curve.")
 
@@ -30,7 +31,11 @@ parser.add_argument('--gammadl2-sens', '-gd2-sens', type = str,
 parser.add_argument('--protondl2-sens', '-pd2-sens', type = str,
                     dest = 'dl2_file_p_sens',
                     help = 'path to reconstructed protons dl2 file')
-
+parser.add_argument('--cam_key', '-k', action='store', type=str,
+                    dest='dl2_params_camera_key',
+                    help='key to the camera table in the hdf5 files.',
+                    default=dl2_params_lstcam_key
+                    )
 args = parser.parse_args()
 
 
@@ -50,7 +55,8 @@ def main():
                                                                               ntelescopes_gamma, ntelescopes_protons,
                                                                               n_bins_energy, n_bins_gammaness,
                                                                               n_bins_theta2, noff,
-                                                                              obstime)
+                                                                              obstime,
+                                                                              dl2_params_camera_key=args.dl2_params_camera_key)
 
     # For testing using fixed cuts
     # gcut = np.ones(eb) * 0.8
@@ -61,7 +67,8 @@ def main():
                                                         args.dl2_file_g_sens, args.dl2_file_p_sens,
                                                         1, 1,
                                                         20, gcut, tcut * (u.deg ** 2), noff,
-                                                        obstime)
+                                                        obstime,
+                                                        dl2_params_camera_key=args.dl2_params_camera_key)
 
     dl2.to_hdf('test_sens.h5', key='data')
     result.to_hdf('test_sens.h5', key='results')
