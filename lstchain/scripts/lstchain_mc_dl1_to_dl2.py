@@ -47,13 +47,13 @@ parser.add_argument('--config_file', '-conf', action='store', type=str,
                     default=None
                     )
 
-parser.add_argument('--cam_key_dl1', '-k', action='store', type=str,
+parser.add_argument('--cam_key_dl1', '-k1', action='store', type=str,
                     dest='dl1_params_camera_key',
                     help='key to the camera table in the hdf5 files.',
                     default=dl1_params_lstcam_key
                     )
 
-parser.add_argument('--cam_key_dl2', '-k', action='store', type=str,
+parser.add_argument('--cam_key_dl2', '-k2', action='store', type=str,
                     dest='dl2_params_camera_key',
                     help='key to the camera table in the hdf5 files.',
                     default=dl2_params_lstcam_key
