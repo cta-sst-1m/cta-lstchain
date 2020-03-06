@@ -59,7 +59,7 @@ def train_energy(train, custom_config={}):
 
     reg = model(**regression_args)
     reg.fit(train[features],
-                  train['log_mc_energy'])
+                  train['log_mc_energy'], sample_weight=train['mc_energy']**2)
 
     print("Model {} trained!".format(model))
     return reg
@@ -93,7 +93,7 @@ def train_disp_vector(train, custom_config={}, predict_features=['disp_dx', 'dis
     reg = model(**regression_args)
     x = train[features]
     y = np.transpose([train[f] for f in predict_features])
-    reg.fit(x, y)
+    reg.fit(x, y, sample_weight=train['mc_energy']**2)
 
     print("Model {} trained!".format(model))
 
@@ -126,7 +126,7 @@ def train_disp_norm(train, custom_config={}, predict_feature='disp_norm'):
     reg = model(**regression_args)
     x = train[features]
     y = np.transpose(train[predict_feature])
-    reg.fit(x, y)
+    reg.fit(x, y, sample_weight=train['mc_energy']**2)
 
     print("Model {} trained!".format(model))
 
@@ -374,9 +374,21 @@ def apply_models(dl1, classifier, reg_energy, reg_disp_vector, custom_config={})
     regression_features = config["regression_features"]
     classification_features = config["classification_features"]
 
-    bad = np.any(np.abs(dl1[regression_features]) > 1e6, axis=1) > 0
-    if np.any(bad):
-        print(f'WARNING: removing {np.sum(bad)} corrupted events.')
+    too_large = np.any(np.abs(dl1[regression_features]) > 1e6, axis=1) > 0
+    if np.any(too_large):
+        print(f'WARNING: removing {np.sum(too_large)} corrupted events.')
+    wrong_pointing = np.ones_like(too_large)
+    if 'alt_tel' in dl1.columns:
+        wrong_alt = np.logical_or(dl1['alt_tel'] < -90, dl1['alt_tel'] > 90)
+        if np.any(wrong_alt):
+            print("WARNING: removing {np.sum(wrong_alt)} corrupted events (bad alt).")
+            wrong_pointing = np.logical_or(wrong_alt, wrong_pointing)
+    if'az_tel' in dl1.columns:
+        wrong_az = np.logical_or(dl1['az_tel'] < 0, dl1['z_tel'] > 360)
+        if np.any(wrong_az):
+            print("WARNING: removing {np.sum(wrong_alt)} corrupted events (bad az).")
+            wrong_pointing = np.logical_or(wrong_az, wrong_pointing)
+    bad = np.logical_or(wrong_pointing, too_large)
     dl2 = dl1[~bad].copy()
     del dl1
     #Reconstruction of Energy and disp_norm distance
