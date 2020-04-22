@@ -32,6 +32,7 @@ from ..image.muon import create_muon_table, fill_muon_event
 from ..visualization import plot_calib
 
 from ctapipe.image.cleaning import number_of_islands
+from ctapipe.instrument.guess import TELESCOPE_NAMES, GuessingKey, GuessingResult
 
 import tables
 from functools import partial
@@ -58,6 +59,9 @@ __all__ = [
     'r0_to_dl1',
 ]
 
+TELESCOPE_NAMES[GuessingKey(n_pixels=7420, focal_length=28.0)] =  GuessingResult(
+    type="LST", name="LST", camera_name="LSiTCam", n_mirrors=1
+)
 
 cleaning_method = tailcuts_clean
 
