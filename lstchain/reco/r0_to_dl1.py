@@ -285,7 +285,7 @@ def r0_to_dl1(input_filename = get_dataset_path('gamma_test_large.simtel.gz'),
 
             # the final transform then needs the mapping and the number of telescopes
             tel_list_transform = partial(utils.expand_tel_list,
-                                         max_tels = len(event.inst.subarray.tel) + 1,
+                                         max_tels = max(event.inst.subarray.tel) + 1,
                                          )
 
             writer.add_column_transform(
