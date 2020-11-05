@@ -1,4 +1,4 @@
-name: lst-dev
+name: lst-dev-small-pix
 channels:
   - default
   - cta-observatory
