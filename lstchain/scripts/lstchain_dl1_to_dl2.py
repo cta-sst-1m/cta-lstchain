@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/usr/bin/env python3
 
 """
@@ -49,70 +48,17 @@ parser.add_argument('--input-file', '-f', type=str,
                     default=None, required=True)
 
 parser.add_argument('--path-models', '-p', action='store', type=str,
-=======
-"""Pipeline for reconstruction of Energy, disp and gamma/hadron
-separation of events stored in a simtelarray file.
-Result is a dataframe with dl2 data.
-Already trained Random Forests are required.
-
-Usage:
-
-$> python lst-recopipe arg1 arg2 ...
-
-"""
-
-from lstchain.reco import dl1_to_dl2
-from sklearn.externals import joblib
-import argparse
-import os
-import shutil
-import pandas as pd
-from lstchain.reco.utils import filter_events, impute_pointing
-from lstchain.io import read_configuration_file, standard_config, replace_config
-from lstchain.io import write_dl2_dataframe
-from lstchain.io.io import dl1_params_lstcam_key, dl2_params_lstcam_key
-import numpy as np
-
-
-parser = argparse.ArgumentParser(description="Reconstruct events")
-
-# Required arguments
-parser.add_argument('--datafile', '-f', type=str,
-                    dest='datafile',
-                    help='path to a DL1 HDF5 file',
-                    )
-
-parser.add_argument('--pathmodels', '-p', action='store', type=str,
->>>>>>> mv file
                      dest='path_models',
                      help='Path where to find the trained RF',
                      default='./trained_models')
 
-<<<<<<< HEAD
-# Optional arguments
-parser.add_argument('--output-dir', '-o', action='store', type=str,
+# Optional argument
+parser.add_argument('--output_dir', '-o', action='store', type=str,
                      dest='output_dir',
                      help='Path where to store the reco dl2 events',
                      default='./dl2_data')
 
-
-parser.add_argument('--config', '-c', action='store', type=str,
-                    dest='config_file',
-                    help='Path to a configuration file. If none is given, a standard configuration is applied',
-                    default=None, required=False)
-
-
-
-args = parser.parse_args()
-
-=======
-# Optional argument
-parser.add_argument('--outdir', '-o', action='store', type=str,
-                     dest='outdir',
-                     help='Path where to store the reco dl2 events',
-                     default='./dl2_data')
-
-parser.add_argument('--config_file', '-conf', action='store', type=str,
+parser.add_argument('--config', '-conf', action='store', type=str,
                     dest='config_file',
                     help='Path to a configuration file. If none is given, a standard configuration is applied',
                     default=None
@@ -133,7 +79,6 @@ parser.add_argument('--cam_key_dl2', '-k2', action='store', type=str,
 args = parser.parse_args()
 
 
->>>>>>> mv file
 def main():
 
     custom_config = {}
@@ -145,17 +90,12 @@ def main():
 
     config = replace_config(standard_config, custom_config)
 
-<<<<<<< HEAD
-    data = pd.read_hdf(args.input_file, key=dl1_params_lstcam_key)
+    data = pd.read_hdf(args.input_file, key=args.dl1_params_camera_key)
 
     if config['source_dependent']:
         data_src_dep = pd.read_hdf(args.input_file, key=dl1_params_src_dep_lstcam_key)
         data = pd.concat([data, data_src_dep], axis=1)
   
-=======
-    data = pd.read_hdf(args.datafile, key=args.dl1_params_camera_key)
-
->>>>>>> mv file
     # Dealing with pointing missing values. This happened when `ucts_time` was invalid.
     if 'alt_tel' in data.columns and 'az_tel' in data.columns \
             and (np.isnan(data.alt_tel).any() or np.isnan(data.az_tel).any()):
@@ -167,10 +107,6 @@ def main():
             data.az_tel = - np.pi/2.
     data = filter_events(data, filters=config["events_filters"])
 
-<<<<<<< HEAD
-=======
-
->>>>>>> mv file
     #Load the trained RF for reconstruction:
     fileE = args.path_models + "/reg_energy.sav"
     fileD = args.path_models + "/reg_disp_vector.sav"
@@ -184,7 +120,6 @@ def main():
 
     dl2 = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
 
-<<<<<<< HEAD
     os.makedirs(args.output_dir, exist_ok=True)
     output_file = os.path.join(args.output_dir, os.path.basename(args.input_file).replace('dl1','dl2'))
 
@@ -219,16 +154,8 @@ def main():
 
                 h5in.copy_node(k, g, overwrite=True)
 
-    write_dl2_dataframe(dl2, output_file)
-=======
-    os.makedirs(args.outdir, exist_ok=True)
-    outfile = args.outdir + '/dl2_' + os.path.basename(args.datafile)
-
-    shutil.copyfile(args.datafile, outfile)
-    write_dl2_dataframe(dl2.astype(float), outfile,
+    write_dl2_dataframe(dl2.astype(float), output_file,
                         dl2_params_camera_key=args.dl2_params_camera_key)
-
->>>>>>> mv file
 
 if __name__ == '__main__':
     main()

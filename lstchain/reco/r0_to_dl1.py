@@ -25,6 +25,8 @@ from ctapipe.image import (
     HillasParameterizationError,
 )
 from ctapipe.image.cleaning import number_of_islands
+from ctapipe.instrument.guess import TELESCOPE_NAMES, GuessingKey, GuessingResult
+
 from itertools import chain
 
 from . import utils
@@ -68,7 +70,7 @@ __all__ = [
     'add_disp_to_parameters_table',
 ]
 
-TELESCOPE_NAMES[GuessingKey(n_pixels=7420, focal_length=28.0)] =  GuessingResult(
+TELESCOPE_NAMES[GuessingKey(n_pixels=7987, focal_length=28.0)] =  GuessingResult(
     type="LST", name="LST", camera_name="LSiTCam", n_mirrors=1
 )
 
@@ -212,7 +214,12 @@ def r0_to_dl1(
     custom_calibration = config["custom_calibration"]
 
     # FIXME for ctapipe 0.8, str should be removed, as Path is supported
-    source = event_source(str(input_filename))
+    try:
+        source = event_source(str(input_filename), back_seekable=True)
+    except:
+        # back_seekable might not be available for other sources that eventio
+        # TODO for real data: source with calibration file and pointing file
+        source = event_source(str(input_filename))
 
     is_simu = source.metadata['is_simulation']
 
@@ -324,8 +331,6 @@ def r0_to_dl1(
                 utils.expand_tel_list,
                 max_tels=max(first_event.inst.subarray.tel) + 1,
             )
-                                         max_tels=len(event.inst.subarray.tel) + 1,
-                                         )
 
             writer.add_column_transform(
                 table_name='subarray/trigger',
@@ -662,7 +667,7 @@ def r0_to_dl1(
 
     if is_simu:
         # Reconstruct source position from disp for all events and write the result in the output file
-        for tel_name in ['LST_LSTCam']:
+        for tel_name in ['LST_LSiTCam']:
             focal = OpticsDescription.from_name(tel_name.split('_')[0]).equivalent_focal_length
             dl1_params_key = f'dl1/event/telescope/parameters/{tel_name}'
             add_disp_to_parameters_table(output_filename, dl1_params_key, focal)
