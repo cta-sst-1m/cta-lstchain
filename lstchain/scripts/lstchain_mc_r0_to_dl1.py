@@ -22,6 +22,7 @@ import logging
 import sys
 
 log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="R0 to DL1")
 

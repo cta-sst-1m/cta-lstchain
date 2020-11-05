@@ -23,6 +23,7 @@ from ctapipe.image import (
 )
 from ctapipe.image.morphology import number_of_islands
 from ctapipe.instrument import OpticsDescription
+from ctapipe.instrument.guess import TELESCOPE_NAMES, GuessingKey, GuessingResult
 from ctapipe.io import event_source, HDF5TableWriter
 from ctapipe.utils import get_dataset_path
 from traitlets.config import Config
@@ -70,8 +71,8 @@ __all__ = [
     'r0_to_dl1',
 ]
 
-TELESCOPE_NAMES[GuessingKey(n_pixels=7420, focal_length=28.0)] =  GuessingResult(
-    type="LST", name="LST", camera_name="LSiTCam", n_mirrors=1
+TELESCOPE_NAMES[GuessingKey(n_pixels=7987, focal_length=28.0)] =  GuessingResult(
+    type="LST", name="LST", camera_name="LSTCam", n_mirrors=1
 )
 
 cleaning_method = tailcuts_clean
@@ -228,13 +229,16 @@ def r0_to_dl1(
     subarray = source.subarray
 
     is_simu = source.is_simulation
+    logger.debug('Processing simulation file')
 
     source.allowed_tels = config["allowed_tels"]
     if config["max_events"] is not None:
         source.max_events = config["max_events"]
 
     metadata = global_metadata(source)
+    logger.debug('Writing metadata')
     write_metadata(metadata, output_filename)
+    logger.debug('Metadata recorded')
 
     cal_mc = load_calibrator_from_config(config, subarray)
 
@@ -340,8 +344,6 @@ def r0_to_dl1(
                 utils.expand_tel_list,
                 max_tels=max(subarray.tel) + 1,
             )
-                                         max_tels=len(event.inst.subarray.tel) + 1,
-                                         )
 
             writer.add_column_transform(
                 table_name='subarray/trigger',
