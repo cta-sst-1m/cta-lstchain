@@ -624,7 +624,7 @@ def r0_to_dl1(
                                          custom_config=config,
                                          use_main_island=True)
                 except HillasParameterizationError:
-                    logging.exception(
+                    logger.exception(
                         'HillasParameterizationError in get_dl1()'
                     )
 
@@ -636,7 +636,7 @@ def r0_to_dl1(
 
                             is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
-                            if not is_saturated:
+                            if True: #not is_saturated: # temporary for testing only
                                 # rejects computationnally expensive events which would
                                 # be poorly estimated with the selected value of n_peak
                                 # TODO : improve to not reject events
@@ -653,9 +653,9 @@ def r0_to_dl1(
                                     dl1_filled.lhfit_call_status = "Processed"
                                 except Exception as err:
                                     dl1_filled.lhfit_call_status = "Not processed : Error in function"
-                                    logging.exception("Unexpected error encountered in : get_dl1_lh_fit()")
-                                    logging.exception(err.__class__)
-                                    logging.exception(err)
+                                    logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                                    logger.exception(err.__class__)
+                                    logger.exception(err)
                                     raise
                             else:
                                 dl1_filled.lhfit_call_status = "Not processed : Saturated"
@@ -664,7 +664,6 @@ def r0_to_dl1(
                                                             + str(dl1_filled['n_pixels']))
                     else:
                         dl1_filled.lhfit_call_status = "Not active"
-                    )
 
                 if not is_simu:
                     # GPS + WRS + UCTS is now working in its nominal configuration.
