@@ -84,7 +84,8 @@ filters = tables.Filters(
     bitshuffle=False,       # for BLOSC, shuffle bits for better compression
 )
 
-geom = CameraGeometry.from_name('LSTCam-003')  # TODO check if global variable needed and camera type hard coded
+geom = CameraGeometry.from_name('LSTCam-003')
+# TODO check if global variable needed and camera type hard coded
 
 
 def get_dl1(
@@ -189,10 +190,14 @@ def get_dl1_lh_fit(
     geometry=geom,  # TODO check why default value, check why the global variable is still used in the function
     use_main_island=True):
     """
-    Return a DL1ParametersContainer of extracted features from a calibrated event.
-    The features are extracted by maximizing an image likelihood function over pixels ands time samples.
-    The model consider a 2D Gaussian distribution of the charge and a linear temporal model. The spatio-yemporal image model is then compared to the signal vs time in each pixel while taking into account the response of the instrument from calibration.
-    The DL1ParametersContainer needs to contain a first features estimation as seed for the likelihood fit.
+    Return a DL1ParametersContainer of extracted features from a calibrated
+    event. The features are extracted by maximizing an image likelihood
+    function over pixels ands time samples. The model consider a 2D Gaussian
+    distribution of the charge and a linear temporal model. The spatio-temporal
+    image model is then compared to the signal vs time in each pixel while
+    taking into account the response of the instrument from calibration.
+    The DL1ParametersContainer needs to contain a first features estimation
+    as seed for the likelihood fit.
 
     Parameters
     ----------
@@ -215,7 +220,6 @@ def get_dl1_lh_fit(
     -------
     DL1ParametersContainer
     """
-
     lh_fit_config = custom_config['lh_fit_config']
     telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
     if is_simu:
@@ -232,7 +236,7 @@ def get_dl1_lh_fit(
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
 
-    # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion
+    # convert back to ctapipe's width and length (in m) from deg TODO inefficient, may need to move the original conversion
     foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
     width = foclen*np.tan(np.deg2rad(dl1_container.width))
     length = foclen*np.tan(np.deg2rad(dl1_container.length))
@@ -264,7 +268,8 @@ def get_dl1_lh_fit(
     start_parameters = {'x_cm': dl1_container.x.to(u.m).value,
                         'y_cm': dl1_container.y.to(u.m).value,
                         'charge': dl1_container.intensity,
-                        't_cm': dl1_container.intercept - normalized_pulse_template.compute_time_of_max(),
+                        't_cm': dl1_container.intercept
+                        - normalized_pulse_template.compute_time_of_max(),
                         'v': np.abs(v),
                         'psi': psi,
                         'width': dl1_container.width.to(u.m).value,
@@ -284,9 +289,12 @@ def get_dl1_lh_fit(
     v_min, v_max = 0,  t_max / d_min
     r_max = np.sqrt(geom.pix_x**2 + geom.pix_y**2).to(u.m).value.max()
 
-    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(), geom.pix_x.to(u.m).value.max()),
-                        'y_cm': (geom.pix_y.to(u.m).value.min(), geom.pix_y.to(u.m).value.max()),
-                        'charge': (dl1_container.intensity * 0.01, dl1_container.intensity * 10),
+    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(),
+                                 geom.pix_x.to(u.m).value.max()),
+                        'y_cm': (geom.pix_y.to(u.m).value.min(),
+                                 geom.pix_y.to(u.m).value.max()),
+                        'charge': (dl1_container.intensity * 0.01,
+                                   dl1_container.intensity * 10),
                         't_cm': (-10, t_max + 10),
                         'v': (v_min, v_max),
                         'psi': (-np.pi, np.pi),
@@ -294,7 +302,6 @@ def get_dl1_lh_fit(
                         'length': (0.00001, r_max), }
 
     try:
-
         fitter = TimeWaveformFitter(waveform=waveform,
                                     image=image,
                                     error=error,
@@ -312,9 +319,9 @@ def get_dl1_lh_fit(
                                     start_parameters=start_parameters,
                                     bound_parameters=bound_parameters,
                                     )
-        # fitter.fill_event(waveform, np.ones(waveform.shape))
 
-        fitter.predict(dl1_container, verbose=lh_fit_config['verbose'], ncall=lh_fit_config['ncall'])
+        fitter.predict(dl1_container, verbose=lh_fit_config['verbose'],
+                       ncall=lh_fit_config['ncall'])
 
         # convert ctapipe's width and length (in m) to deg: #TODO see previous
         foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
@@ -324,19 +331,20 @@ def get_dl1_lh_fit(
         dl1_container.length = length
 
         if lh_fit_config['verbose']:
-            axes = fitter.plot(init=True)
+            axes = fitter.plot_event(init=True)
             axes.axes.get_figure().savefig('event/start.png')
 
             axes = fitter.plot_waveforms()
             axes.get_figure().savefig('event/waveforms.png')
 
-            axes = fitter.plot()
+            axes = fitter.plot_event()
             axes.axes.get_figure().savefig('event/end.png')
 
             for params in fitter.start_parameters.keys():
                 axes = fitter.plot_likelihood(params)
                 axes.get_figure().savefig('event/' + params + '.png')
-            print("event plot produced, input?")
+            print("event plot produced, press Enter to continue "
+                  "or Ctrl+C and Enter to stop")
             input()
     except Exception as e:
 
@@ -632,12 +640,12 @@ def r0_to_dl1(
 
                     if 'lh_fit_config' in config.keys():
                         if (dl1_filled['n_pixels'] is not 0
-                            and dl1_filled['n_pixels'] < 1000):
+                           and dl1_filled['n_pixels'] < 1000):
 
                             is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
                             if True: #not is_saturated: # temporary for testing only
-                                # rejects computationnally expensive events which would
+                                # rejects computationally expensive events which would
                                 # be poorly estimated with the selected value of n_peak
                                 # TODO : improve to not reject events
                                 try:

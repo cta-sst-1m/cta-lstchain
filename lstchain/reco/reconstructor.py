@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 range_ext = 5
 
+
 class DL0Fitter(ABC):
     """
         Base class for the extraction of DL1 parameters from R1 events
@@ -26,23 +27,24 @@ class DL0Fitter(ABC):
 
     """
 
-    def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
-                 template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
-                 sigma_space=4, sigma_time=3,
+    def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples,
+                 start_parameters, template, gain=1, is_high_gain=0,
+                 baseline=0, crosstalk=0, sigma_space=4, sigma_time=3,
                  time_before_shower=10, time_after_shower=50,
                  bound_parameters=None):
         """
             Initialise the data and parameters used for the fitting.
 
-            Parameters:
-            -----------
-            waveform: array
+            Parameters
+            ----------
+            waveform: float array
                 Calibrated signal in each pixel versus time
-            error: array or None
+            error: float array or None
                 Error on the waveform
-            sigma_s: array
-                Standard deviation of the amplitude of the single photo-electron pluse
-            geometry:
+            sigma_s: float array
+                Standard deviation of the amplitude of
+                the single photo-electron pulse
+            geometry: ctapipe.instrument.camera.CameraGeometry
                 Camera geometry
             dt: float
                 Duration of time samples
@@ -50,47 +52,43 @@ class DL0Fitter(ABC):
                 Number of time samples
             start_parameters: dictionary
                 Starting value of the image parameters for the fit
-            template: array
-                Temporal template of the response of the pixel to a photo-electron
+                Parameters are :
+                    x_cm, y_cm, charge, t_cm, v, psi, width, length
+            template: NormalizedPulseTemplate
+                Template of the response of the pixel to a photo-electron
                 Can contain two templates for high and low gain
-            gain: array
+            gain: float array
                 Selected gain in each pixel
             is_high_gain: boolean array
                 Identify pixel with high gain selected
-            baseline: array
+            baseline: float array
                 Remaining baseline in each pixel
-            crosstalk: float
+            crosstalk: float array
                 Probability of a photo-electron to interact twice in a pixel
             sigma_space: float
-                Size of the region over which the likelihood needs to be estimated
-                in number of standard deviation away from the center of the spatial model
+                Size of the region over which the likelihood needs to be
+                estimated in number of standard deviation away from the center
+                of the spatial model
             sigma_time: float
                 Time window around the peak of signal over which to compute
                 the likelihood in number of temporal width of the signal
             time_before_shower: float
                 Duration before the start of the signal which is not ignored
-            time_after_shower:
+            time_after_shower: float
                 Duration after the end of the signal which is not ignored
             bound_parameters: dictionary
                 Bounds for the parameters used during the fit
+                Parameters are :
+                    x_cm, y_cm, charge, t_cm, v, psi, width, length
         """
-
-        self.gain = gain
-        self.is_high_gain = is_high_gain
-        self.baseline = baseline
-        self.sigma_s = sigma_s
-        self.crosstalk = crosstalk
-
         self.geometry = geometry
         self.dt = dt
         self.template = template
 
-        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
         self.times = np.arange(0, self.n_samples) * self.dt
 
         self.pix_x = geometry.pix_x.value
         self.pix_y = geometry.pix_y.value
-        self.pix_area = geometry.pix_area.to(u.m**2).value
 
         self.labels = {'charge': 'Charge [p.e.]',
                        't_cm': '$t_{CM}$ [ns]',
@@ -135,7 +133,6 @@ class DL0Fitter(ABC):
         filter_times = np.arange(self.n_samples)[~self.mask_time]
 
         if error is None:
-
             std = np.std(self.data[~self.mask_pixel])
             self.error = np.ones(self.data.shape) * std
 
@@ -146,166 +143,176 @@ class DL0Fitter(ABC):
 
     @abstractmethod
     def clean_data(self):
-
-        pass
+        """
+            Abstract method used to select pixels and time samples used in the
+            fitting procedure.
+        """
 
     def __str__(self):
-
-        str = 'Start parameters :\n\t{}\n'.format(self.start_parameters)
-        str += 'Bound parameters :\n\t{}\n'.format(self.bound_parameters)
-        str += 'End parameters :\n\t{}\n'.format(self.end_parameters)
-        str += 'Error parameters :\n\t{}\n'.format(self.error_parameters)
-        str += 'Log-Likelihood :\t{}'.format(self.log_likelihood(**self.end_parameters))
-
-        return str
-
-    def fill_event(self, data, error=None):
         """
+            Define the print format of DL0Fitter objects.
 
-        Parameters
-        ----------
-        data: DL0 waveforms (n_pixels, n_samples)
-        error Associated errors to the DL0 waveforms (n_pixels, n_samples)
-        Returns
-        -------
-
+            Returns
+            -------
+            str: string
+                Contains the starting and bound parameters used for the fit,
+                and the end results with errors and associated log-likelihood
+                in readable format.
         """
+        s = 'Start parameters :\n\t{}\n'.format(self.start_parameters)
+        s += 'Bound parameters :\n\t{}\n'.format(self.bound_parameters)
+        s += 'End parameters :\n\t{}\n'.format(self.end_parameters)
+        s += 'Error parameters :\n\t{}\n'.format(self.error_parameters)
+        s += 'Log-Likelihood :\t{}'.format(self.log_likelihood(**self.end_parameters))
+
+        return s
+
     def fit(self, verbose=True, minuit=True, ncall=None, **kwargs):
         """
             Performs the fitting procedure.
 
-        Parameters
-        ----------
-        verbose: boolean
-        minuit: boolean
-            If True, minuit is used to perform the fit. Else, scipy optimize is used instead
-        ncall: int
-            Maximum number of call for migrad
+            Parameters
+            ----------
+            verbose: boolean
+            minuit: boolean
+                If True, minuit is used to perform the fit.
+                Else, scipy optimize is used instead
+            ncall: int
+                Maximum number of call for migrad
         """
-
         if minuit:
-
             fixed_params = {}
             bounds_params = {}
             start_params = self.start_parameters
 
             if self.bound_parameters is not None:
-
                 for key, val in self.bound_parameters.items():
-
                     bounds_params['limit_' + key] = val
 
             for key in self.names_parameters:
-
                 if key in kwargs.keys():
-
                     fixed_params['fix_' + key] = True
 
                 else:
-
                     fixed_params['fix_' + key] = False
 
-            # print(fixed_params, bounds_params, start_params)
+            logger.debug("fixed parameters :\n %s\n"
+                         "bound parameters :\n %s\n"
+                         "start parameters :\n %s\n",
+                         fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
-            f = lambda *args: -self.log_likelihood(*args)
+            def f(*args): return -self.log_likelihood(*args)
             print_level = 2 if verbose else 0
-            m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
+            m = Minuit(f, print_level=print_level,
+                       forced_parameters=self.names_parameters, errordef=0.5,
+                       **options)
             m.migrad(ncall=ncall)
             self.end_parameters = dict(m.values)
             options = {**self.end_parameters, **bounds_params, **fixed_params}
-            m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
+            m = Minuit(f, print_level=print_level,
+                       forced_parameters=self.names_parameters, errordef=0.5,
+                       **options)
             m.migrad(ncall=ncall)
             try:
                 self.error_parameters = dict(m.errors)
 
             except (KeyError, AttributeError, RuntimeError):
-
                 self.error_parameters = {key: np.nan for key in self.names_parameters}
                 pass
-            # print(self.end_parameters, self.error_parameters)
-
+            logger.debug("end parameters :\n %s\n"
+                         "error parameters :\n %s\n",
+                         self.end_parameters, self.error_parameters)
         else:
-
             fixed_params = {}
-
             for param in self.names_parameters:
                 if param in kwargs.keys():
                     fixed_params[param] = kwargs[param]
                     del kwargs[param]
-
             start_parameters = []
             bounds = []
             name_parameters = []
-
             for key in self.names_parameters:
-
                 if key not in fixed_params.keys():
-
                     start_parameters.append(self.start_parameters[key])
                     bounds.append(self.bound_parameters[key])
                     name_parameters.append(key)
 
             def llh(x):
-
                 params = dict(zip(name_parameters, x))
                 return -self.log_likelihood(**params, **fixed_params)
 
-            result = minimize(llh, x0=start_parameters, bounds=bounds, **kwargs)
+            result = minimize(llh, x0=np.asarray(start_parameters),
+                              bounds=bounds, **kwargs)
             self.end_parameters = dict(zip(name_parameters, result.x))
             self.end_parameters.update(fixed_params)
-
             try:
                 self.correlation_matrix = result.hess_inv.todense()
                 self.error_parameters = dict(zip(name_parameters,
                                              np.diagonal(np.sqrt(self.correlation_matrix))))
             except (KeyError, AttributeError):
                 pass
-
             if verbose:
-
                 print(result)
 
     def pdf(self, *args, **kwargs):
-
+        """Compute a probability density function."""
         return np.exp(self.log_pdf(*args, **kwargs))
 
     @abstractmethod
-    def plot(self):
-
-        pass
-
-    @abstractmethod
     def compute_bounds(self):
-
-        pass
+        """Abstract method for the computation of the bounds for the fit."""
 
     @abstractmethod
     def log_pdf(self, *args, **kwargs):
-
-        pass
+        """
+            Abstract method for the computation of the log of a probability
+            density function used in the fitting procedure. Needs to be
+            overridden by the relevant likelihood function.
+        """
 
     def likelihood(self, *args, **kwargs):
-
+        """Compute a likelihood."""
         return np.exp(self.log_likelihood(*args, **kwargs))
 
     def log_likelihood(self, *args, **kwargs):
-
+        """Compute the log-likelihood used in the fitting procedure."""
         llh = self.log_pdf(*args, **kwargs)
         return np.sum(llh)
 
     def plot_1dlikelihood(self, parameter_name, axes=None, size=1000,
                           x_label=None, invert=False):
+        """
+            Plot the 1D evolution of the log-likelihood for a parameter
+            when fixing the other parameters to their end value.
 
+            Parameters
+            ----------
+            parameter_name: string
+                Parameter over which the log-likelihood needs to be plotted
+            axes: matplotlib.pyplot.axis
+                Axis used to store the figure
+                If None, a new one is created
+            size: int
+                Number of points of the likelihood curve
+            x_label: string
+                Label of the x axis
+            invert: bool
+                If True, invert the x and y axis
+
+            Returns
+            -------
+            axes: matplotlib.pyplot.axis
+                Axis object filled with the 1D log-likelihood figure
+        """
         key = parameter_name
 
         if key not in self.names_parameters:
-
             raise NameError('Parameter : {} not in existing parameters :'
                             '{}'.format(key, self.names_parameters))
 
-        x = np.linspace(self.bound_parameters[key][0], self.bound_parameters[key][1], num=size)
+        x = np.linspace(self.bound_parameters[key][0],
+                        self.bound_parameters[key][1], num=size)
         if axes is None:
-
             fig = plt.figure()
             axes = fig.add_subplot(111)
 
@@ -313,7 +320,6 @@ class DL0Fitter(ABC):
         llh = np.zeros(x.shape)
 
         for i, xx in enumerate(x):
-
             params[key] = xx
             llh[i] = self.log_likelihood(**params)
 
@@ -328,9 +334,6 @@ class DL0Fitter(ABC):
                          color='b', label='Starting value {:.2f}'.format(
                     self.start_parameters[key]
                 ))
-            # axes.axvspan(self.bound_parameters[key][0],
-            #              self.bound_parameters[key][1], label='bounds',
-            #             alpha=0.5, facecolor='k')
             axes.set_ylabel('-$\ln \mathcal{L}$')
             axes.set_xlabel(x_label)
 
@@ -351,21 +354,44 @@ class DL0Fitter(ABC):
             axes.set_xlabel('-$\ln \mathcal{L}$')
             axes.set_ylabel(x_label)
             axes.xaxis.set_label_position('top')
-            # axes.xaxis.tick_top()
 
         axes.legend(loc='best')
         return axes
 
     def plot_2dlikelihood(self, parameter_1, parameter_2=None, size=100,
                           x_label=None, y_label=None):
+        """
+            Plot the 2D evolution of the log-likelihood for a pair of
+            parameters when fixing the other parameters to their end value.
+
+            Parameters
+            ----------
+            parameter_1: string
+                First parameter over which the function needs to be plotted
+            parameter_2: string
+                Second parameter over which the function needs to be plotted
+            size: int or (int, int)
+                Number of points of the likelihood per dimension
+            x_label: string
+                Label of the x axis
+            y_label: string
+                Label of the y axis
+
+            Returns
+            -------
+            axes: matplotlib.pyplot.axis
+                Axis object filled with the 2D log-likelihood figures
+        """
 
         if isinstance(size, int):
             size = (size, size)
 
         key_x = parameter_1
         key_y = parameter_2
-        x = np.linspace(self.bound_parameters[key_x], self.bound_parameters[key_x], num=size[0])
-        y = np.linspace(self.bound_parameters[key_y], self.bound_parameters[key_y], num=size[1])
+        x = np.linspace(self.bound_parameters[key_x],
+                        self.bound_parameters[key_x], num=size[0])
+        y = np.linspace(self.bound_parameters[key_y],
+                        self.bound_parameters[key_y], num=size[1])
         dx = x[1] - x[0]
         dy = y[1] - y[0]
 
@@ -375,10 +401,8 @@ class DL0Fitter(ABC):
         for i, xx in enumerate(x):
             params[key_x] = xx
             for j, yy in enumerate(y):
-
                 params[key_y] = yy
                 llh[i, j] = self.log_likelihood(**params)
-
 
         fig = plt.figure()
         left, width = 0.1, 0.65
@@ -416,9 +440,10 @@ class DL0Fitter(ABC):
         y_label = self.labels[key_y] if y_label is None else y_label
 
         im = axes.imshow(-llh.T,  origin='lower', extent=[x.min() - dx/2.,
-                                                     x.max() - dx/2,
-                                                     y.min() - dy/2,
-                                                     y.max() - dy/2], aspect='auto')
+                                                          x.max() - dx/2.,
+                                                          y.min() - dy/2.,
+                                                          y.max() - dy/2.],
+                         aspect='auto')
 
         axes.scatter(self.end_parameters[key_x], self.end_parameters[key_y],
                      marker='x', color='w', label='Maximum Likelihood')
@@ -434,14 +459,34 @@ class DL0Fitter(ABC):
     def plot_likelihood(self, parameter_1, parameter_2=None,
                         axes=None, size=100,
                         x_label=None, y_label=None):
+        """
+            Plot the 1D or 2D likelihood.
 
+            Parameters
+            ----------
+            parameter_1: string
+                Parameter over which the function needs to be plotted
+            parameter_2: string
+                Second parameter over which the function needs to be plotted
+            axes: matplotlib.pyplot.axis
+                Axis used to store the figure
+                If None, a new one is created
+            size: int
+                Number of points of the likelihood curve for each dimension
+            x_label: string
+                Label of the x axis
+            y_label: string
+                Label of the y axis
+
+            Returns
+            -------
+            matplotlib.pyplot.axis object filled with the log-likelihood figure
+        """
         if parameter_2 is None:
-
             return self.plot_1dlikelihood(parameter_name=parameter_1,
-                                          axes=axes, x_label=x_label, size=size)
-
+                                          axes=axes, x_label=x_label,
+                                          size=size)
         else:
-
             return self.plot_2dlikelihood(parameter_1,
                                           parameter_2=parameter_2,
                                           size=size,
@@ -451,20 +496,24 @@ class DL0Fitter(ABC):
 
 class TimeWaveformFitter(DL0Fitter, Reconstructor):
     """
-        Specific class for the extraction of DL1 parameters from R1 events using a log likelihood minimisation method by fitting the spatial and temporal dependance of signal in the camera taking into account the calibrated response of the pixels.
+        Specific class for the extraction of DL1 parameters from R1 events
+        using a log likelihood minimisation method by fitting the spatial and
+        temporal dependence of signal in the camera taking into account the
+        calibrated response of the pixels.
     """
-
 
     def __init__(self, *args, image, n_peaks=100, **kwargs):
         """
-            Initialise the data and parameters used for the fitting, including method specific objects.
+            Initialise the data and parameters used for the fitting, including
+            method specific objects.
 
             Parameters:
             *args, **kwargs: Argument for the DL0Fitter initialisation
-            image: ADDTYPE
+            image: array_like
                 Image of the event in the camera
             n_peak: int
-                Maximum upper bound of the sum over possible detected photo-electron value in the likelihood computation.
+                Maximum upper bound of the sum over possible detected
+                photo-electron value in the likelihood computation.
             -----------
         """
         self.image = image
@@ -473,9 +522,17 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
     def clean_data(self):
         """
-            Method used to select pixels and time samples used in the fitting procedure.
+            Method used to select pixels and time samples used in the
+            fitting procedure. The spatial selection takes pixels in an
+            ellipsis obtained from the seed Hillas parameters extraction.
+            An additional factor sigma_space is added to the length and width
+            to extend the selected region. The temporal selection takes a time
+            window centered on the seed time of center of mass and of duration
+            equal to the time of propagation of the signal along the length
+            of the ellipsis times a factor sigma_time. An additional fixed
+            duration is also added before and after this time window through
+            the time_before_shower and time_after_shower arguments.
         """
-
         x_cm = self.start_parameters['x_cm']
         y_cm = self.start_parameters['y_cm']
         width = self.start_parameters['width']
@@ -507,24 +564,20 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
             Compute quantities used at each iteration of the fitting procedure.
         """
-        # May need rework after accelaration addition
+        self.n_peaks = n_peaks
         photoelectron_peak = np.arange(range_ext*n_peaks, dtype=np.int)
-        # the range_ext* is for testing only, extends the range available for the sum in the likelihood
-        self.photo_peaks = photoelectron_peak
-        photoelectron_peak = photoelectron_peak[..., None]
-        mask = (self.photo_peaks == 0)
-        self.photo_peaks[mask] = 1
-        log_k = np.log(self.photo_peaks)
-        log_k = np.cumsum(log_k)
-        self.photo_peaks[mask] = 0
-        self.log_k = log_k
-        self.crosstalk_factor = photoelectron_peak * self.crosstalk
-        self.crosstalk_factor = self.crosstalk_factor
+        # the range_ext* is for testing only,
+        # extends the range available for the sum in the likelihood
+        photoelectron_peak[0] = 1
+        log_factorial = np.log(photoelectron_peak)
+        log_factorial = np.cumsum(log_factorial)
+        self.log_factorial = log_factorial
 
     def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
                 length, psi, v):
         """
-            Compute the log likelihood of the model used for a set of input parameters.
+            Compute the log likelihood of the model used for a set of input
+            parameters.
 
         Parameters
         ----------
@@ -532,23 +585,33 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         charge: float
             Charge of the peak of the spatial model
         t_cm: float
-            Time of the middle of the energy deposit in the camera for the temporal model
+            Time of the middle of the energy deposit in the camera
+            for the temporal model
         x_cm, y_cm: float
             Position of the center of the spatial model
         length, width: float
             Spatial dispersion of the model along the main and minor axis
         psi: float
-            Orientation of the main axis of the spatial model and of the propagation of the temporal model
+            Orientation of the main axis of the spatial model and of the
+            propagation of the temporal model
         v: float
             Velocity of the evolution of the signal over the camera
         """
+
+        # Alternative to test (done in independent code)
+        def array_times_template_part(array, ti, template, gain_type):
+            return array[..., None] * template(ti, gain=gain_type)
+
+        def array_times_template(array, ti, template, is_high_gain):
+            return (array_times_template_part(array, ti, template, 'HG').T * is_high_gain
+                    + array_times_template_part(array, ti, template, 'LG').T * (~is_high_gain)).T
 
         dx = (self.pix_x - x_cm)
         dy = (self.pix_y - y_cm)
         long = dx * np.cos(psi) + dy * np.sin(psi)
         p = [v, t_cm]
         t = np.polyval(p, long)
-        t = self.times[..., np.newaxis] - t
+        t = self.times[..., None] - t
         t = t.T
 
         log_mu = log_gaussian2d(size=charge * self.pix_area,
@@ -561,73 +624,97 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                 psi=psi)
         mu = np.exp(log_mu)
 
-        # We reduce the sum by limiting to the poisson term contributing for more than 10^6
-        # The limits are approximated by 2 broken linear function obtained for 0 crosstalk
+        # We reduce the sum by limiting to the poisson term contributing for
+        # more than 10^-6. The limits are approximated by 2 broken linear
+        # function obtained for 0 crosstalk.
         # The choice of kmin and kmax is currently not done on a pixel basis
+
+        # Alternative kmin, kmax and mask determination, faster?
+        mask = (mu <= self.n_peaks/1.096 - 47.8)
+        if len(mu[mask]) == 0:
+            kmin, kmax = 0, self.n_peaks
+        else:
+            min_mu = min(mu[mask])
+            max_mu = max(mu[mask])
+            if min_mu < 120:
+                kmin = int(0.66 * (min_mu-20))
+            else:
+                kmin = int(0.904 * min_mu - 42.8)
+            if max_mu < 120:
+                kmax = np.ceil(1.34 * (max_mu-20) + 45)
+            else:
+                kmax = np.ceil(1.096 * max_mu + 47.8)
+        logger.debug("new k range determination %s - %s \n %s", kmin, kmax, mask)
+
         kmin = np.zeros(len(mu))
         kmax = np.zeros(len(mu))
-        it = 0
-        for elt in mu:
+        for it, elt in enumerate(mu):
             if elt < 120:
                 kmin[it] = 0.66 * (elt-20)
                 kmax[it] = 1.34 * (elt-20) + 45
             else:
                 kmin[it] = 0.904 * elt - 42.8
                 kmax[it] = 1.096 * elt + 47.8
-            it = it + 1
-        kmin[kmin<0] = 0
+        kmin[kmin < 0] = 0
         kmax = np.ceil(kmax)
-        mask = (kmax <= len(self.log_k) / range_ext)
-        # /range_ext for testing only
-        # compensate the extension of len(self.log_k) back to n_peak
+        mask = (kmax <= self.n_peaks)
         if len(kmin[mask]) == 0 or len(kmax[mask]) == 0:
-            kmin, kmax = 0, len(self.log_k)
+            kmin, kmax = 0, self.n_peaks
         else:
-            #kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
+            # kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
             kmin, kmax = min(kmin.astype(int)), max(kmax.astype(int))
 
-        if kmax > len(self.log_k):
-            kmax = len(self.log_k)
+        logger.debug("old k range determination %s - %s \n %s", kmin, kmax, mask)
+
+        if kmax > self.n_peaks * range_ext:
+            kmax = self.n_peaks * range_ext
             logger.debug("kmax forced to %s", kmax)
-            # Only usefull to compare the sum with the Gaussian approx.
+            # Only useful to compare the sum with the Gaussian approx.
             # Actual implementation should use n_peak as length and
             # compute only the gaussian approx for higher kmax
-
-        log_k = self.log_k
 
         self.photo_peaks = np.arange(kmin, kmax, dtype=np.int)
         self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
-        x = mu + self.crosstalk_factor
-        log_x = np.log(x)
+        # Compute the Poisson term in the pixel likelihood
+        mu_plus_crosstalk = mu + self.crosstalk_factor
+        log_mu_plus_crosstalk = np.log(mu_plus_crosstalk)
+        log_mu_plus_crosstalk = ((self.photo_peaks - 1)
+                                 * log_mu_plus_crosstalk.T).T
+        log_poisson = (log_mu - self.log_factorial[kmin:kmax][..., None]
+                       - mu_plus_crosstalk
+                       + log_mu_plus_crosstalk)
 
-        log_x = ((self.photo_peaks - 1) * log_x.T).T
-        log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
+        # Compute the Gaussian term in the pixel likelihood
+        signal = self.data - self.baseline[..., None]
+
+        # Alternative to test (done in independent code)
+        mean = self.photo_peaks * array_times_template(self.gain, t, self.template,
+                                                       self.is_high_gain)[..., None]
+        sigma_n = (self.photo_peaks
+                   * (array_times_template(self.sigma_s, t, self.template,
+                                           self.is_high_gain)**2)[..., None])
+        logger.debug("new mean %s; sigma n %s", mean, sigma_n)
 
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                                        self.template(t, gain='LG')))[..., None]
-
         mean_HG = self.photo_peaks * ((self.gain[..., None] *
-                                       self.template(t, gain='HG')))[
-            ..., None]
-
+                                       self.template(t, gain='HG')))[..., None]
         mean = (mean_HG.T * self.is_high_gain) + mean_LG.T * (~self.is_high_gain)
         mean = mean.T
 
-        x = self.data - self.baseline[..., None]
-
         sigma_n_LG = self.photo_peaks * ((self.sigma_s[..., None] *
                                           self.template(t, gain='LG')) ** 2)[..., None]
-
         sigma_n_HG = self.photo_peaks * ((self.sigma_s[..., None] *
                                           self.template(t, gain='HG')) ** 2)[..., None]
-
         sigma_n = sigma_n_HG.T * self.is_high_gain + sigma_n_LG.T * (~self.is_high_gain)
         sigma_n = sigma_n.T
+        logger.debug("old mean %s; sigma n %s", mean, sigma_n)
 
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
 
+        log_gauss = log_gaussian(signal[..., None], mean, sigma_n)
 
         if np.any(~mask):
             mu_hat_LG = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
@@ -647,31 +734,38 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             sigma_hat = sigma_hat.T
             sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
 
-            log_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
+            """
+                    Alternative to test (done in independent code and above)
+            mu_hat = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
+                     * array_times_template(t, self.gain[~mask], self.template[~mask],
+                                     self.is_high_gain[~mask])[..., None])
+            sigma_hat = (((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
+                         * array_times_template(t, self.gain[~mask], self.template[~mask],
+                                         self.is_high_gain[~mask])**2)[..., None])
+            """
 
+            log_pixel_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
 
-        log_gauss = log_gaussian(x[..., None], mean, sigma_n)
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
-        log_pdf = log_poisson + log_gauss
-        pdf = np.sum(np.exp(log_pdf), axis=-1)
+        log_pixel_pdf_elt = log_poisson + log_gauss
+        pixel_pdf = np.sum(np.exp(log_pixel_pdf_elt), axis=-1)
 
         log_pdf2 = 0
         if np.any(~mask):
-            log_pdf = np.log(pdf)
-            logger.debug("Gaussian approx %s", log_pdf_HL)
-            logger.debug("Poisson sum %s", log_pdf[~mask])
-            logger.debug("diff %s", log_pdf_HL-log_pdf[~mask])
-            pdf2 = pdf[mask]
-            mask = (pdf2 <= 0)
-            pdf2 = pdf2[~mask]
-            n_points_LL = pdf2.size
-            n_points_HL = log_pdf_HL.size()
-            log_pdf2 = ((np.log(pdf2).sum() + log_pdf_HL.sum())
+            log_pixel_pdf = np.log(pixel_pdf)
+            logger.debug("Gaussian approx %s", log_pixel_pdf_HL)
+            logger.debug("Poisson sum %s", log_pixel_pdf[~mask])
+            logger.debug("diff %s", log_pixel_pdf_HL-log_pixel_pdf[~mask])
+            pixel_pdf_LL = pixel_pdf[mask]
+            mask = (pixel_pdf_LL <= 0)
+            pixel_pdf_LL = pixel_pdf_LL[~mask]
+            n_points_LL = pixel_pdf_LL.size
+            n_points_HL = log_pixel_pdf_HL.size()
+            log_pdf2 = ((np.log(pixel_pdf_LL).sum() + log_pixel_pdf_HL.sum())
                         / (n_points_LL + n_points_HL))
 
-
-        mask = (pdf <= 0)
-        pdf = pdf[~mask]
+        mask = (pixel_pdf <= 0)
+        pdf = pixel_pdf[~mask]
         n_points = pdf.size
         log_pdf = np.log(pdf).sum() / n_points
 
@@ -690,7 +784,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             Location to fill with updated DL1 parameters
         """
 
-
         self.fit(**kwargs)
 
         container.x = self.end_parameters['x_cm'] * u.m
@@ -698,8 +791,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         container.r = np.sqrt(container.x**2 + container.y**2)
         container.phi = np.arctan2(container.y, container.x)
         container.psi = self.end_parameters['psi'] * u.rad # TODO turn psi angle when length < width
-        container.length = max(self.end_parameters['length'], self.end_parameters['width']) * u.m
-        container.width = min(self.end_parameters['length'], self.end_parameters['width']) * u.m
+        container.length = max(self.end_parameters['length'],
+                               self.end_parameters['width']) * u.m
+        container.width = min(self.end_parameters['length'],
+                              self.end_parameters['width']) * u.m
 
         container.time_gradient = self.end_parameters['v']
         container.intercept = self.end_parameters['t_cm']
@@ -709,12 +804,30 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         return container
 
     def compute_bounds(self):
-        pass
+        """Method for the computation of the bounds for the fit."""
 
-    def plot(self, n_sigma=3, init=False):
+    def plot_event(self, n_sigma=3, init=False):
+        """
+            Plot the image of the event in the camera along with the extracted
+            ellipsis before or after the fitting procedure.
 
+        Parameters
+        ----------
+        n_sigma: float
+            Multiplicative factor on the extracted width and length
+            used for the displayed ellipsis
+        init: boolean
+            If True, use the starting parameters for the ellipsis
+            If False, use the ending parameters for the ellipsis
+        Returns
+        -------
+        cam_display: ctapipe.visualization.CameraDisplay
+            Camera image using matplotlib
+
+        """
         charge = self.image
-        cam_display = display_array_camera(charge, geom=self.geometry,)
+        cam_display = display_array_camera(charge,
+                                           camera_geometry=self.geometry)
 
         if init:
             params = self.start_parameters
@@ -746,7 +859,22 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         return cam_display
 
     def plot_waveforms(self, axes=None):
+        """
+            Plot the intensity of the signal in the camera as a function of
+            time and of the position projected on the main axis of the fitted
+            ellipsis.
 
+            Parameters
+            ----------
+            axes: matplotlib.pyplot.axis
+                Axis used to store the figure
+                If None, a new one is created
+
+            Returns
+            -------
+            axes: matplotlib.pyplot.axis
+                Object filled with the figure
+        """
         image = self.image[self.mask_pixel]
         n_pixels = min(15, len(image))
         pixels = np.argsort(image)[-n_pixels:]
@@ -773,61 +901,69 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         M = axes.pcolormesh(X, Y, waveforms)
         axes.set_xlabel('time [ns]')
         axes.set_ylabel('Longitude [m]')
-        label = self.labels['t_cm'] + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm'])
-        label += '\n' + self.labels['v'] + ' : {:.2f} [m/ns]'.format(self.end_parameters['v'])
+        label = (self.labels['t_cm']
+                 + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm']))
+        label += ('\n' + self.labels['v']
+                  + ' : {:.2f} [m/ns]'.format(self.end_parameters['v']))
         axes.plot(fitted_times, long_pix, color='w',
-                 label=label)
+                  label=label)
         axes.legend(loc='best')
         axes.get_figure().colorbar(label='[LSB]', ax=axes, mappable=M)
 
         return axes
 
 
-
 class NormalizedPulseTemplate:
     """
-        Class for handling the template for the pulsed response of the pixels of the camera to a single photo-electron in high and low gain.
+        Class for handling the template for the pulsed response of the pixels
+        of the camera to a single photo-electron in high and low gain.
     """
 
-    def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None, amplitude_LG_std=None):
+    def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_err=None,
+                 amplitude_LG_err=None):
         """
-            Save the pulse template and optionnal error and create an interpolation.
+            Save the pulse template and optional error
+            and create an interpolation.
 
         Parameters
         ----------
         amplitude_HG/LG: array
-            Amplitude of the signal produced in a pixel by a photo-electron in high gain (HG) and low gain (LG) for successive time samples
+            Amplitude of the signal produced in a pixel by a photo-electron
+            in high gain (HG) and low gain (LG) for successive time samples
         time: array
             Times of the samples
-        amplitude_HG/LG_std: array
+        amplitude_HG/LG_err: array
             Error on the pulse template amplitude
         """
         self.time = np.array(time)
         self.amplitude_HG = np.array(amplitude_HG)
-        self.amplitude_LG = np.array(amplitude_LG)  
-        if amplitude_HG_std is not None:
-            assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
-            self.amplitude_HG_std = np.array(amplitude_HG_std)
+        self.amplitude_LG = np.array(amplitude_LG)
+        if amplitude_HG_err is not None:
+            assert np.array(amplitude_HG_err).shape == self.amplitude_HG.shape
+            self.amplitude_HG_err = np.array(amplitude_HG_err)
         else:
-            self.amplitude_HG_std = np.zeros(self.amplitude_HG.shape)
-        if amplitude_LG_std is not None:
-            assert np.array(amplitude_LG_std).shape == self.amplitude_LG.shape
-            self.amplitude_LG_std = np.array(amplitude_LG_std)
+            self.amplitude_HG_err = np.zeros(self.amplitude_HG.shape)
+        if amplitude_LG_err is not None:
+            assert np.array(amplitude_LG_err).shape == self.amplitude_LG.shape
+            self.amplitude_LG_err = np.array(amplitude_LG_err)
         else:
-            self.amplitude_LG_std = self.amplitude_LG * 0
+            self.amplitude_LG_err = self.amplitude_LG * 0
         self._template = self._interpolate()
-        self._template_std = self._interpolate_std()
+        self._template_err = self._interpolate_err()
 
     def __call__(self, time, gain, amplitude=1, t_0=0, baseline=0):
         """
-            Use the interpolated template to access the value of the pulse at time = time in gain regime = gain. Additionnally, an alternative normalisation, origin of time and baseline can be used.
+            Use the interpolated template to access the value of the pulse at
+            time = time in gain regime = gain. Additionally, an alternative
+            normalisation, origin of time and baseline can be used.
 
         Parameters
         ----------
         time: float array
-            Time after the origin after which to estimate the value of the pulse
+            Time after the origin to estimate the value of the pulse
         gain: string array
-            Identifier of the gain channel used for each pixel. Either "HG" or "LG"
+            Identifier of the gain channel used for each pixel
+            Either "HG" or "LG"
         amplitude: float
             Normalisation factor to aply to the template
         t_0: float
@@ -843,28 +979,53 @@ class NormalizedPulseTemplate:
         y = amplitude * self._template[gain](time - t_0) + baseline
         return np.array(y)
 
-    def std(self, time, amplitude=1, t_0=0, baseline=0):
+    def get_error(self, time, gain, amplitude=1, t_0=0, baseline=0):
         """
+            Use the interpolated error on the template to access the value
+            of the pulse at time = time in gain regime = gain.
+            Additionally, an alternative normalisation, origin of time
+            and baseline can be used.
 
+        Parameters
+        ----------
+        time: float array
+            Time after the origin to estimate the value of the error
+        gain: string array
+            Identifier of the gain channel used for each pixel
+            Either "HG" or "LG"
+        amplitude: float
+            Normalisation factor to apply to the error
+        t_0: float
+            Shift in the origin of time
+        baseline: float array
+            Baseline to be subtracted for each pixel
+
+        Return
+        ----------
+        y: array
+            Value of the template in each pixel at the requested times
         """
-        y = amplitude * self._template_std(time - t_0) + baseline
+        y = amplitude * self._template_err[gain](time - t_0) + baseline
         return np.array(y)
-    """
-    def __getitem__(self, item):
-        return NormalizedPulseTemplate(amplitude=self.amplitude[item],
-                                       time=self.time)
-    """
+
     def save(self, filename):
         """
             Save a loaded template to a text file.
+        Parameters
+        ----------
+        filename: string
+            Location of the output text file
         """
-        data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_std, self.amplitude_LG, self.amplitude_LG_std])
+        data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_err,
+                          self.amplitude_LG, self.amplitude_LG_err])
         np.savetxt(filename, data.T)
 
     @classmethod
     def load(cls, filename):
         """
-        Load a pulse template from a text file. Allows for only one gain channel and no errors, two gain channels and no errors or two gain channels with errors.
+        Load a pulse template from a text file.
+        Allows for only one gain channel and no errors,
+        two gain channels and no errors or two gain channels with errors.
 
         Parameters
         ----------
@@ -874,7 +1035,8 @@ class NormalizedPulseTemplate:
 
         Return
         ----------
-        cls(): Instance of NormalizedPulseTemplate receiving the information from the input file
+        cls(): Instance of NormalizedPulseTemplate receiving the information
+               from the input file
         """
         data = np.loadtxt(filename).T
         assert len(data) in [2, 3, 5]
@@ -884,133 +1046,73 @@ class NormalizedPulseTemplate:
         if len(data) == 3:  # no error in file
             t, hg, lg = data
             return cls(amplitude_HG=hg, amplitude_LG=lg, time=t)
-        elif len(data) == 5: # two gains and errors
+        elif len(data) == 5:  # two gains and errors
             t, hg, lg, dhg, dlg = data
-            return cls(amplitude_HG=hg, amplitude_LG=lg, time=t, amplitude_HG_std=dhg, amplitude_LG_std=dlg)
+            return cls(amplitude_HG=hg, amplitude_LG=lg, time=t,
+                       amplitude_HG_err=dhg, amplitude_LG_err=dlg)
 
+    @staticmethod
+    def _normalize(amplitude, error):
+        """
+        Normalize the pulse template.
+        """
+        if abs(np.min(amplitude)) <= abs(np.max(amplitude)):
+            normalization = np.max(amplitude)
+        else:
+            normalization = np.min(amplitude)
+        return amplitude/normalization, error/normalization
 
     def _interpolate(self):
         """
-        Creates a normalised interpolation of the pulse template from a discrete and non-normalised input. Also normalises the error.
+        Creates a normalised interpolation of the pulse template from a
+        discrete and non-normalised input. Also normalises the error.
 
         Return
         ----------
-        A dictionnary containning a 1d cubic interpolation of the normalised amplitude of the template versus time, for the high and low gain channels.
+        A dictionary containing a 1d cubic interpolation of the normalised
+        amplitude of the template versus time,
+        for the high and low gain channels.
         """
-        if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
-                normalization = np.max(self.amplitude_HG)
-        else:
-            normalization = np.min(self.amplitude_HG)
+        self.amplitude_HG, self.amplitude_HG_err = self._normalize(
+                                                         self.amplitude_HG,
+                                                         self.amplitude_HG_err)
+        self.amplitude_LG, self.amplitude_LG_err = self._normalize(
+                                                         self.amplitude_LG,
+                                                         self.amplitude_LG_err)
+        return {"HG": interp1d(self.time, self.amplitude_HG, kind='cubic',
+                               bounds_error=False, fill_value=0.,
+                               assume_sorted=True),
+                "LG": interp1d(self.time, self.amplitude_LG, kind='cubic',
+                               bounds_error=False, fill_value=0.,
+                               assume_sorted=True)}
 
-        self.amplitude_HG = self.amplitude_HG / normalization
-        self.amplitude_HG_std = self.amplitude_HG_std / normalization
-
-        if abs(np.min(self.amplitude_LG)) <= abs(np.max(self.amplitude_LG)):
-            normalization = np.max(self.amplitude_LG)
-        else:
-            normalization = np.min(self.amplitude_LG)
-
-        self.amplitude_LG = self.amplitude_LG / normalization
-        self.amplitude_LG_std = self.amplitude_LG_std / normalization
-
-        return {"HG" : interp1d(self.time, self.amplitude_HG, kind='cubic',
-                                bounds_error=False, fill_value=0., assume_sorted=True),
-                "LG" : interp1d(self.time, self.amplitude_LG, kind='cubic',
-                                bounds_error=False, fill_value=0., assume_sorted=True)}
-                
-
-    def _interpolate_std(self):
+    def _interpolate_err(self):
         """
-        Creates a normalised interpolation of the error on the pulse template from a discrete and normalised input.
+        Creates an interpolation of the error on the pulse template
+        from a discrete and normalised input.
 
         Return
         ----------
-        A dictionnary containning a 1d cubic interpolation of the error on the normalised amplitude of the template versus time, for the high and low gain channels.
+        A dictionary containing a 1d cubic interpolation of the error on the
+        normalised amplitude of the template versus time,
+        for the high and low gain channels.
         """
-        return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
-                       bounds_error=False, fill_value=np.inf, assume_sorted=True),
-                "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
-                       bounds_error=False, fill_value=np.inf, assume_sorted=True)}
+        return {"HG": interp1d(self.time, self.amplitude_HG_err, kind='cubic',
+                               bounds_error=False, fill_value=np.inf,
+                               assume_sorted=True),
+                "LG": interp1d(self.time, self.amplitude_LG_err, kind='cubic',
+                               bounds_error=False, fill_value=np.inf,
+                               assume_sorted=True)}
 
- 
-    # commenting unused old function for now
-    """
-    def integral(self, order=1):
-        return np.trapz(y=self.amplitude**order, x=self.time)
-
-    def compute_charge_amplitude_ratio(self, integral_width, dt_sampling):
-
-        dt = self.time[1] - self.time[0]
-
-        if not dt % dt_sampling:
-            raise ValueError('Cannot use sampling rate {} for {}'.format(
-                1 / dt_sampling, dt))
-        step = int(dt_sampling / dt)
-        y = self.amplitude[::step]
-        window = np.ones(integral_width)
-        charge_to_amplitude_factor = np.convolve(y, window)
-        charge_to_amplitude_factor = np.max(charge_to_amplitude_factor)
-
-        return 1 / charge_to_amplitude_factor
-
-    def plot(self, axes=None, label='Template data-points', **kwargs):
-        if axes is None:
-            fig = plt.figure()
-            axes = fig.add_subplot(111)
-        t = np.linspace(self.time.min(), self.time.max(),
-                        num=len(self.time) * 100)
-        axes.plot(self.time, self.amplitude,
-                          label=label, **kwargs)
-        axes.set_xlabel('time [ns]')
-        axes.set_ylabel('normalised amplitude [a.u.]')
-        axes.legend(loc='best')
-        return axes
-
-    def plot_interpolation(self, axes=None, sigma=-1., color='k',
-                           label='Template interpolation', cumulative=False,
-                           **kwargs):
-        if axes is None:
-            fig = plt.figure()
-            axes = fig.add_subplot(111)
-        t = np.linspace(self.time.min(), self.time.max(),
-                        num=len(self.time) * 100)
-        mean_y = self.__call__(t)
-        std_y = self.std(t)
-        if sigma > 0:
-            axes.fill_between(
-                t,
-                mean_y + sigma * std_y,
-                mean_y - sigma * std_y,
-                alpha=0.3, color=color, label=label
-            )
-            axes.plot(t, mean_y, '-', color=color, **kwargs)
-        else:
-            axes.plot(t, mean_y, '-', label=label, color=color, **kwargs)
-        if cumulative:
-            integ = np.cumsum(mean_y)
-            axes.plot(t, 1 - integ/integ[-1], '--', color=color,
-                      label=label + ' integrated', **kwargs)
-        axes.legend(loc='best')
-        axes.set_xlabel('time [ns]')
-        axes.set_ylabel('normalised amplitude [a.u.]')
-        return axes
-    """
     def compute_time_of_max(self):
         """
-
+            Find the average of the times of maximum
+            of the high and low gain pulse shapes.
+        Returns
+        -------
+        t_max: float
+            Time of maximum of the pulse shapes (averaged)
         """
         t_max = (self.time[np.argmax(self.amplitude_HG)] +
                  self.time[np.argmax(self.amplitude_LG)])/2
         return t_max
-        # old method below, more precise possible for one gain
-        """
-        dt = np.diff(self.time)[0]
-        index_max = np.argmax(self.amplitude)
-        t = np.linspace(self.time[index_max] - dt,
-                        self.time[index_max] + dt,
-                        num=100)
-        t_max = self(t).argmax()
-        t_max = t[t_max]
-        return t_max
-        """
-
