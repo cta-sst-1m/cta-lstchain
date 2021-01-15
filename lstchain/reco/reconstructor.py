@@ -84,6 +84,7 @@ class DL0Fitter(ABC):
         self.geometry = geometry
         self.dt = dt
         self.template = template
+        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
 
         self.times = np.arange(0, self.n_samples) * self.dt
 
@@ -119,7 +120,6 @@ class DL0Fitter(ABC):
         self.sigma_s = sigma_s[self.mask_pixel]
         self.crosstalk = crosstalk[self.mask_pixel]
 
-        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
         self.times = (np.arange(0, self.n_samples) * self.dt)[self.mask_time]
 
         self.pix_x = geometry.pix_x.value[self.mask_pixel]
@@ -196,10 +196,10 @@ class DL0Fitter(ABC):
                 else:
                     fixed_params['fix_' + key] = False
 
-            logger.debug("fixed parameters :\n %s\n"
-                         "bound parameters :\n %s\n"
-                         "start parameters :\n %s\n",
-                         fixed_params, bounds_params, start_params)
+            #logger.debug("fixed parameters :\n %s\n"
+            #             "bound parameters :\n %s\n"
+            #             "start parameters :\n %s\n",
+            #             fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
             def f(*args): return -self.log_likelihood(*args)
             print_level = 2 if verbose else 0
@@ -219,9 +219,9 @@ class DL0Fitter(ABC):
             except (KeyError, AttributeError, RuntimeError):
                 self.error_parameters = {key: np.nan for key in self.names_parameters}
                 pass
-            logger.debug("end parameters :\n %s\n"
-                         "error parameters :\n %s\n",
-                         self.end_parameters, self.error_parameters)
+            #logger.debug("end parameters :\n %s\n"
+            #             "error parameters :\n %s\n",
+            #             self.end_parameters, self.error_parameters)
         else:
             fixed_params = {}
             for param in self.names_parameters:
@@ -630,6 +630,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # The choice of kmin and kmax is currently not done on a pixel basis
 
         # Alternative kmin, kmax and mask determination, faster?
+        # Results are fully compatible
         mask = (mu <= self.n_peaks/1.096 - 47.8)
         if len(mu[mask]) == 0:
             kmin, kmax = 0, self.n_peaks
@@ -644,7 +645,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                 kmax = np.ceil(1.34 * (max_mu-20) + 45)
             else:
                 kmax = np.ceil(1.096 * max_mu + 47.8)
-        logger.debug("new k range determination %s - %s \n %s", kmin, kmax, mask)
 
         kmin = np.zeros(len(mu))
         kmax = np.zeros(len(mu))
@@ -661,15 +661,13 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         if len(kmin[mask]) == 0 or len(kmax[mask]) == 0:
             kmin, kmax = 0, self.n_peaks
         else:
-            # kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
+            #kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
             kmin, kmax = min(kmin.astype(int)), max(kmax.astype(int))
-
-        logger.debug("old k range determination %s - %s \n %s", kmin, kmax, mask)
 
         if kmax > self.n_peaks * range_ext:
             kmax = self.n_peaks * range_ext
             logger.debug("kmax forced to %s", kmax)
-            # Only useful to compare the sum with the Gaussian approx.
+            # range_ext only useful to compare the sum with the Gaussian approx
             # Actual implementation should use n_peak as length and
             # compute only the gaussian approx for higher kmax
 
@@ -688,79 +686,45 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # Compute the Gaussian term in the pixel likelihood
         signal = self.data - self.baseline[..., None]
 
-        # Alternative to test (done in independent code)
         mean = self.photo_peaks * array_times_template(self.gain, t, self.template,
                                                        self.is_high_gain)[..., None]
         sigma_n = (self.photo_peaks
                    * (array_times_template(self.sigma_s, t, self.template,
                                            self.is_high_gain)**2)[..., None])
-        logger.debug("new mean %s; sigma n %s", mean, sigma_n)
-
-        mean_LG = self.photo_peaks * ((self.gain[..., None] *
-                                       self.template(t, gain='LG')))[..., None]
-        mean_HG = self.photo_peaks * ((self.gain[..., None] *
-                                       self.template(t, gain='HG')))[..., None]
-        mean = (mean_HG.T * self.is_high_gain) + mean_LG.T * (~self.is_high_gain)
-        mean = mean.T
-
-        sigma_n_LG = self.photo_peaks * ((self.sigma_s[..., None] *
-                                          self.template(t, gain='LG')) ** 2)[..., None]
-        sigma_n_HG = self.photo_peaks * ((self.sigma_s[..., None] *
-                                          self.template(t, gain='HG')) ** 2)[..., None]
-        sigma_n = sigma_n_HG.T * self.is_high_gain + sigma_n_LG.T * (~self.is_high_gain)
-        sigma_n = sigma_n.T
-        logger.debug("old mean %s; sigma n %s", mean, sigma_n)
-
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
-
         log_gauss = log_gaussian(signal[..., None], mean, sigma_n)
 
         if np.any(~mask):
-            mu_hat_LG = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
-                         * (self.gain[~mask][..., None] * self.template[~mask](t, gain='LG')))
-            mu_hat_HG = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
-                         * (self.gain[~mask][..., None] * self.template[~mask](t, gain='HG')))
-            mu_hat = (mu_hat_HG.T * self.is_high_gain[~mask]) + mu_hat_LG.T * (~self.is_high_gain[~mask])
-            mu_hat = mu_hat.T
+            mu_hat = ((mu[~mask] / (1-self.crosstalk[~mask]))[..., None]
+                      * array_times_template(self.gain[~mask], t[~mask],
+                                             self.template,
+                                             self.is_high_gain[~mask]))
+            sigma_hat = (((mu[~mask] / np.power(1-self.crosstalk[~mask], 3))[..., None]
+                         * array_times_template(self.gain[~mask], t[~mask],
+                                                self.template,
+                                                self.is_high_gain[~mask])**2))
+            sigma_hat = np.sqrt((self.error[~mask]**2) + sigma_hat)
 
-            sigma_hat_LG = ((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
-                            * (self.gain[~mask][..., None]
-                               * self.template[~mask](t, gain='LG')) ** 2)
-            sigma_hat_HG = ((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
-                            * (self.gain[~mask][..., None]
-                               * self.template[~mask](t, gain='HG')) ** 2)
-            sigma_hat = (sigma_hat_HG.T * self.is_high_gain[~mask]) + sigma_hat_LG.T * (~self.is_high_gain[~mask])
-            sigma_hat = sigma_hat.T
-            sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
-
-            """
-                    Alternative to test (done in independent code and above)
-            mu_hat = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
-                     * array_times_template(t, self.gain[~mask], self.template[~mask],
-                                     self.is_high_gain[~mask])[..., None])
-            sigma_hat = (((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
-                         * array_times_template(t, self.gain[~mask], self.template[~mask],
-                                         self.is_high_gain[~mask])**2)[..., None])
-            """
-
-            log_pixel_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
+            log_pixel_pdf_HL = log_gaussian(signal[~mask], mu_hat, sigma_hat)
 
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
         log_pixel_pdf_elt = log_poisson + log_gauss
         pixel_pdf = np.sum(np.exp(log_pixel_pdf_elt), axis=-1)
 
         log_pdf2 = 0
+        a = False
         if np.any(~mask):
+            a = True
             log_pixel_pdf = np.log(pixel_pdf)
-            logger.debug("Gaussian approx %s", log_pixel_pdf_HL)
-            logger.debug("Poisson sum %s", log_pixel_pdf[~mask])
-            logger.debug("diff %s", log_pixel_pdf_HL-log_pixel_pdf[~mask])
+            #logger.debug("Gaussian approx %s", log_pixel_pdf_HL)
+            #logger.debug("Poisson sum %s", log_pixel_pdf[~mask])
+            #logger.debug("diff %s", np.sum(log_pixel_pdf_HL-log_pixel_pdf[~mask]))
             pixel_pdf_LL = pixel_pdf[mask]
             mask = (pixel_pdf_LL <= 0)
             pixel_pdf_LL = pixel_pdf_LL[~mask]
             n_points_LL = pixel_pdf_LL.size
-            n_points_HL = log_pixel_pdf_HL.size()
+            n_points_HL = log_pixel_pdf_HL.size
             log_pdf2 = ((np.log(pixel_pdf_LL).sum() + log_pixel_pdf_HL.sum())
                         / (n_points_LL + n_points_HL))
 
@@ -768,9 +732,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         pdf = pixel_pdf[~mask]
         n_points = pdf.size
         log_pdf = np.log(pdf).sum() / n_points
-
-        logger.debug("Final pdf %s", log_pdf)
-        logger.debug("Final pdf with Gaussian approx %s", log_pdf2)
+        if a:
+            #logger.debug("Final pdf %s", log_pdf)
+            #logger.debug("Final pdf with Gaussian approx %s", log_pdf2)
+            log_pdf = log_pdf
 
         return log_pdf
 

@@ -42,12 +42,20 @@ parser.add_argument('--config', '-c', action='store', type=Path,
                     help='Path to a configuration file. If none is given, a standard configuration is applied',
                     default=None
                     )
+parser.add_argument('--logger-level', '-l', action='store',
+                    dest='log_level',
+                    help='',
+                    default="NOTSET"
+                    )
 
 
 args = parser.parse_args()
 
 
 def main():
+    logging.basicConfig()
+    logging.getLogger("lstchain.reco.r0_to_dl1").setLevel(args.log_level)
+    logging.getLogger("lstchain.reco.reconstructor").setLevel(args.log_level)
 
     output_dir = args.output_dir.absolute()
     output_dir.mkdir(exist_ok=True)
