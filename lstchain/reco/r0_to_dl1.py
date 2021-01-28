@@ -638,39 +638,28 @@ def r0_to_dl1(
                 image = event.dl1.tel[telescope_id].image
 
                 if 'lh_fit_config' in config.keys():
-                    if (dl1_filled['n_pixels'] is not 0
-                       and dl1_filled['n_pixels'] < 1000):
-
-                        is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
-
-                        if True: #not is_saturated: # temporary for testing only
-                                 # rejects computationally expensive events which would
-                                 # be poorly estimated with the selected value of n_peak
-                                 # TODO : improve to not reject events
-                            try:
-                                dl1_filled = get_dl1_lh_fit(event,
-                                                            subarray,
-                                                            telescope_id,
-                                                            image=image,
-                                                            is_simu=is_simu,
-                                                            normalized_pulse_template=pulse_template,
-                                                            dl1_container=dl1_filled,
-                                                            custom_config=config,
-                                                            use_main_island=True)
-                                dl1_filled.lhfit_call_status = "Processed"
-                            except Exception as err:
-                                dl1_filled.lhfit_call_status = "Not processed : Error in function"
-                                logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
-                                logger.exception(err.__class__)
-                                logger.exception(err)
-                                raise
-                        else:
-                            dl1_filled.lhfit_call_status = "Not processed : Saturated"
+                    if dl1_filled['n_pixels'] is not 0:
+                        try:
+                            dl1_filled = get_dl1_lh_fit(event,
+                                                        subarray,
+                                                        telescope_id,
+                                                        image=image,
+                                                        is_simu=is_simu,
+                                                        normalized_pulse_template=pulse_template,
+                                                        dl1_container=dl1_filled,
+                                                        custom_config=config,
+                                                        use_main_island=True)
+                            dl1_filled.lhfit_call_status = 1
+                        except Exception as err:
+                            dl1_filled.lhfit_call_status = -1
+                            logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                            logger.exception(err.__class__)
+                            logger.exception(err)
+                            raise
                     else:
-                        dl1_filled.lhfit_call_status = ("Not processed : n_pixel = "
-                                                        + str(dl1_filled['n_pixels']))
+                        dl1_filled.lhfit_call_status = 0
                 else:
-                    dl1_filled.lhfit_call_status = "Not active"
+                    dl1_filled.lhfit_call_status = None
 
                 if not is_simu:
                     # GPS + WRS + UCTS is now working in its nominal configuration.
