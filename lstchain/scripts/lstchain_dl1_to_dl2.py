@@ -38,7 +38,6 @@ from lstchain.io.io import (
     dl2_params_lstcam_key,
 )
 
-
 parser = argparse.ArgumentParser(description="DL1 to DL2")
 
 # Required arguments
@@ -48,39 +47,25 @@ parser.add_argument('--input-file', '-f', type=str,
                     default=None, required=True)
 
 parser.add_argument('--path-models', '-p', action='store', type=str,
-                     dest='path_models',
-                     help='Path where to find the trained RF',
-                     default='./trained_models')
+                    dest='path_models',
+                    help='Path where to find the trained RF',
+                    default='./trained_models')
 
-# Optional argument
-parser.add_argument('--outdir', '-o', action='store', type=str,
-                     dest='outdir',
-                     help='Path where to store the reco dl2 events',
-                     default='./dl2_data')
+# Optional arguments
+parser.add_argument('--output-dir', '-o', action='store', type=str,
+                    dest='output_dir',
+                    help='Path where to store the reco dl2 events',
+                    default='./dl2_data')
 
-parser.add_argument('--config_file', '-conf', action='store', type=str,
+parser.add_argument('--config', '-c', action='store', type=str,
                     dest='config_file',
                     help='Path to a configuration file. If none is given, a standard configuration is applied',
-                    default=None
-                    )
-
-parser.add_argument('--cam_key_dl1', '-k1', action='store', type=str,
-                    dest='dl1_params_camera_key',
-                    help='key to the camera table in the hdf5 files.',
-                    default=dl1_params_lstcam_key
-                    )
-
-parser.add_argument('--cam_key_dl2', '-k2', action='store', type=str,
-                    dest='dl2_params_camera_key',
-                    help='key to the camera table in the hdf5 files.',
-                    default=dl2_params_lstcam_key
-                    )
+                    default=None, required=False)
 
 args = parser.parse_args()
 
 
 def main():
-
     custom_config = {}
     if args.config_file is not None:
         try:
@@ -90,12 +75,11 @@ def main():
 
     config = replace_config(standard_config, custom_config)
 
+    data = pd.read_hdf(args.input_file, key=dl1_params_lstcam_key)
 
     if config['source_dependent']:
         data_src_dep = pd.read_hdf(args.input_file, key=dl1_params_src_dep_lstcam_key)
         data = pd.concat([data, data_src_dep], axis=1)
-  
-    data = pd.read_hdf(args.datafile, key=args.dl1_params_camera_key)
 
     # Dealing with pointing missing values. This happened when `ucts_time` was invalid.
     if 'alt_tel' in data.columns and 'az_tel' in data.columns \
@@ -104,30 +88,29 @@ def main():
         if np.isfinite(data.alt_tel).any() and np.isfinite(data.az_tel).any():
             data = impute_pointing(data)
         else:
-            data.alt_tel = - np.pi/2.
-            data.az_tel = - np.pi/2.
+            data.alt_tel = - np.pi / 2.
+            data.az_tel = - np.pi / 2.
 
     data = filter_events(data,
                          filters=config["events_filters"],
                          finite_params=config['regression_features'] + config['classification_features'],
                          )
 
-
-    #Load the trained RF for reconstruction:
+    # Load the trained RF for reconstruction:
     fileE = args.path_models + "/reg_energy.sav"
     fileD = args.path_models + "/reg_disp_vector.sav"
     fileH = args.path_models + "/cls_gh.sav"
-    
+
     reg_energy = joblib.load(fileE)
     reg_disp_vector = joblib.load(fileD)
     cls_gh = joblib.load(fileH)
-    
-    #Apply the models to the data
+
+    # Apply the models to the data
 
     dl2 = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    output_file = os.path.join(args.output_dir, os.path.basename(args.input_file).replace('dl1','dl2'))
+    output_file = os.path.join(args.output_dir, os.path.basename(args.input_file).replace('dl1', 'dl2'))
 
     if os.path.exists(output_file):
         raise IOError(output_file + ' exists, exiting.')
@@ -154,14 +137,13 @@ def main():
                     grouppath, groupname = path.rsplit('/', 1)
                     g = h5out.create_group(
                         grouppath, groupname, createparents=True
-                        )
+                    )
                 else:
                     g = h5out.get_node(path)
 
                 h5in.copy_node(k, g, overwrite=True)
 
-    write_dl2_dataframe(dl2.astype(float), outfile,
-                        dl2_params_camera_key=args.dl2_params_camera_key)
+    write_dl2_dataframe(dl2, output_file)
 
 
 if __name__ == '__main__':
