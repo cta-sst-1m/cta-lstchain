@@ -27,7 +27,7 @@ for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-p
     json_config_file="/fefs/home/david.miranda/software/cta-lstchain_v.${lstchain_version}/lstchain/data/sipm_cam.json"
   fi
 
-  working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/mc_r0_to_dl1/"
+  working_dir="${path_to_lstchain}/lstchain/scripts/bash/mc_r0_to_dl1/"
   bash ${working_dir}/mc_r0_to_dl1.sh "${input_folder}" "${output_folder}" "${json_config_file}" "${production_name}" "${working_dir}" "${cluster}"
 
   echo ${input_folder}

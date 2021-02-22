@@ -28,7 +28,7 @@ for percentage in "${percent_event_train[@]}"; do
     production_name="Prod5 ${folder} with lstchain_v.${lstchain_version}"
     cluster="itcluster"
 
-    working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/merge_dl1_train_test_set/"
+    working_dir="${path_to_lstchain}/lstchain/scripts/bash/merge_dl1_train_test_set/"
 
     bash ${working_dir}/merge_dl1_train_test_set.sh "${input_folder}" "${output_folder}" "${percentage}" "${production_name}" "${working_dir}" "${cluster}"
 

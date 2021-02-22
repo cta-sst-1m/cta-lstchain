@@ -32,7 +32,7 @@ for percentage in "${percent_event_train[@]}"; do
   test_percent=$((100 - train_percent))
   split_tag="${train_percent}.${test_percent}"
 
-  working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/rf_training/${rf_type}/"
+  working_dir="${path_to_lstchain}/lstchain/scripts/bash/rf_training/${rf_type}/"
 
   for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns"; do
 #  for folder in "mono-lst-sipm-borofloat-3ns" "mono-lst-sipm-borofloat-5ns" "mono-lst-sipm-borofloat-7ns"; do

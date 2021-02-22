@@ -22,5 +22,5 @@ echo "conda activate sipm_lstchain.0.6.3"
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
 
-echo "python ${working_dir}/training.py --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE"
-python ${working_dir}/training.py --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE
+echo "lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE"
+lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE

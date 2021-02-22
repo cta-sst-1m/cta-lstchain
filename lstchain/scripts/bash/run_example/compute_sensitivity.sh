@@ -26,7 +26,7 @@ gammanes_preselector="0.5"
 max_gammaness="1.0"
 
 percent_event_train=(30 50)
-ARRAY_INTENSITY=(100 200)
+ARRAY_INTENSITY=(0 100 200)
 ARRAY_LEAKAGE=(0.0 0.2)
 
 for percentage in "${percent_event_train[@]}"; do
@@ -45,7 +45,7 @@ for percentage in "${percent_event_train[@]}"; do
     exit 1
   fi
 
-  working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/compute_sensitivity/${rf_type}/"
+  working_dir="${path_to_lstchain}/lstchain/scripts/bash/compute_sensitivity/${rf_type}/"
   magic_reference="${path_to_lstchain}/lstchain/spectra/data/magic_sensitivity.txt"
 
   for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns"; do

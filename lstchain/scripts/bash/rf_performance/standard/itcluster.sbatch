@@ -23,4 +23,5 @@ echo "conda activate sipm_lstchain.0.6.3"
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
 
-python ${working_dir}/rf_performance.py --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder
+echo lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder
+lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder
