@@ -50,8 +50,8 @@ for percentage in "${percent_event_train[@]}"; do
       ...
       ln=""
 
-      path_to_file="${path_to_lstchain}/lstchain/standard_analysis/scripts/compare_sensitivity/"
-      python ${path_to_file}/compare_sensitivity.py --input_files "$f1" "$f2" .. "$fn" --labels "$l1" "$l2" .. "$ln" --colors "$c1" "$c2" .. "$cn" --markers "$m1" "$m2" .. "$mn" --output_dir "${output_folder}"
+      working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/compare_sensitivity/"
+      python ${working_dir}/compare_sensitivity.py --input_files "$f1" "$f2" .. "$fn" --labels "$l1" "$l2" .. "$ln" --colors "$c1" "$c2" .. "$cn" --markers "$m1" "$m2" .. "$mn" --output_dir "${output_folder}"
     done
   done
 done

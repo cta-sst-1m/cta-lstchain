@@ -26,21 +26,9 @@ for percentage in "${percent_event_train[@]}"; do
     input_folder="/fefs/aswg/workspace/david.miranda/data/prod5/dl1/lstchain_v.${lstchain_version}/${folder}/"
     output_folder="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}"
     production_name="Prod5 ${folder} with lstchain_v.${lstchain_version}"
-
     cluster="itcluster"
 
-    if [[ "${cluster}" == "camk" ]]; then
-      echo "Not implemented yet"
-      working_dir=" "
-    elif [[ "${cluster}" == "yggdrasil" ]]; then
-      echo "Not implemented yet"
-      working_dir=" "
-    elif [[ "${cluster}" == "itcluster" ]]; then
-      working_dir="${path_to_lstchain}/lstchain/standard_analysis/scripts/merge_dl1_train_test_set/"
-    else
-      echo "unknown server, exiting"
-      exit 1
-    fi
+    working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/merge_dl1_train_test_set/"
 
     bash ${working_dir}/merge_dl1_train_test_set.sh "${input_folder}" "${output_folder}" "${percentage}" "${production_name}" "${working_dir}" "${cluster}"
 

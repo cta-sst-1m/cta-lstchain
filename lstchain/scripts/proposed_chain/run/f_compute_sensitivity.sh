@@ -40,12 +40,12 @@ for percentage in "${percent_event_train[@]}"; do
   elif [[ "${cluster}" == "yggdrasil" ]]; then
     working_dir="${path_to_lstchain}/lstchain/standard_analysis/scripts/compute_sensitivity/${rf_type}/"
   elif [[ "${cluster}" == "itcluster" ]]; then
-    working_dir="${path_to_lstchain}/lstchain/standard_analysis/scripts/compute_sensitivity/${rf_type}/"
   else
     echo "unknown server, exiting"
     exit 1
   fi
 
+  working_dir="${path_to_lstchain}/lstchain/scripts/proposed_chain/scripts/compute_sensitivity/${rf_type}/"
   magic_reference="${path_to_lstchain}/lstchain/spectra/data/magic_sensitivity.txt"
 
   for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns"; do
@@ -59,7 +59,7 @@ for percentage in "${percent_event_train[@]}"; do
         output_folder="/fefs/aswg/workspace/david.miranda/data/prod5/sensitivity/lstchain_v.${lstchain_version}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
         production_name="Prod5_${folder}_with_lstchain_v.${lstchain_version}_leak_${leakage}_intensity_${intensity}"
 
-        bash ${working_dir}/sensitivity_computation.sh "${dl2_gamma_test}" "${dl2_proton_test}" "${output_folder}" "${intensity}" "${leakage}" "${gammanes_preselector}" "${max_gammaness}" "${magic_reference}" "${production_name}" "${working_dir}" "${cluster}"
+        bash ${working_dir}/sensitivity.sh "${dl2_gamma_test}" "${dl2_proton_test}" "${output_folder}" "${intensity}" "${leakage}" "${gammanes_preselector}" "${max_gammaness}" "${magic_reference}" "${production_name}" "${working_dir}" "${cluster}"
         sleep 0.1
 
         echo ${dl2_gamma_test}

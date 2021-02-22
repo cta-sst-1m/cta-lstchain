@@ -94,7 +94,7 @@ parser.add_argument('--max_gh_cut_efficiency', type=float, dest='max_gh_cut_effi
 parser.add_argument('--gammaness_step', type=float, dest='gammaness_step', default=0.01,
                     help='Steps for the gammaness scan related to the g/h separation efficiency optimization')
 
-parser.add_argument('--nbins', type=float, dest='nbins', default=20,
+parser.add_argument('--nbins', type=int, dest='nbins', default=20,
                     help='Number of energy bins in the chosen energy range. Following CTA standard rules for '
                          'performance evaluation, the energy range is divided in five-per-decade equal logarithmic '
                          'energy bins')
