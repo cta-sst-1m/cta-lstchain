@@ -675,8 +675,8 @@ def direction_results(dl2_data, points_outfile=None, plot_outfile=None):
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm()),
                                   line_args=dict(color='black'),
                                   )
-    axes[1, 0].set_xlabel('simu alt [rad]')
-    axes[1, 0].set_ylabel('reco alt [rad]')
+    axes[1, 0].set_xlabel('simu alt [rad]', fontsize=14)
+    axes[1, 0].set_ylabel('reco alt [rad]', fontsize=14)
 
     ctaplot.plot_migration_matrix(dl2_data.mc_az,
                                   dl2_data.reco_az,
@@ -686,8 +686,8 @@ def direction_results(dl2_data, points_outfile=None, plot_outfile=None):
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm()),
                                   line_args=dict(color='black'),
                                   )
-    axes[1, 1].set_xlabel('simu az [rad]')
-    axes[1, 1].set_ylabel('reco az [rad]')
+    axes[1, 1].set_xlabel('simu az [rad]', fontsize=14)
+    axes[1, 1].set_ylabel('reco az [rad]', fontsize=14)
 
     fig.tight_layout()
 
