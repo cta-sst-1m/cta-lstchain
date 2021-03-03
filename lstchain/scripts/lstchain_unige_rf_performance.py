@@ -90,10 +90,6 @@ parser.add_argument('--nbins', type=int,
                     dest='nbins', default=None,
                     help='Total number of energy bins in the emin to emax range')
 
-parser.add_argument('--dl2_path', type=str,
-                    dest='dl2_path', default=None,
-                    help='dl2 path directory, if any')
-
 
 args = parser.parse_args()
 
@@ -236,7 +232,11 @@ def main():
     emin = args.emin
     emax = args.emax
 
-    dl2_path = args.dl2_path
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        print("Directory ", output_dir, " Created")
+    except FileExistsError:
+        print("Directory ", output_dir, " already exists")
 
     custom_config = {}
 
@@ -254,40 +254,33 @@ def main():
 
     dl2 = {}
 
-    if dl2_path is None:
+    for a_set in ['train', 'test']:
 
-        for a_set in ['train', 'test']:
+        if a_set is 'train':
+            dl1_gamma = dl1_gamma_train
+            dl1_proton = dl1_proton_train
+        elif a_set is 'test':
+            dl1_gamma = dl1_gamma_test
+            dl1_proton = dl1_proton_test
+        else:
+            print('wrong set!')
+            sys.exit()
 
-            if a_set is 'train':
-                dl1_gamma = dl1_gamma_train
-                dl1_proton = dl1_proton_train
-            elif a_set is 'test':
-                dl1_gamma = dl1_gamma_test
-                dl1_proton = dl1_proton_test
-            else:
-                print('wrong set!')
-                sys.exit()
+        gammas = filter_events(pd.read_hdf(dl1_gamma, key=dl1_cam_key), config["events_filters"])
+        protons = filter_events(pd.read_hdf(dl1_proton, key=dl1_cam_key), config["events_filters"])
 
-            gammas = filter_events(pd.read_hdf(dl1_gamma, key=dl1_cam_key), config["events_filters"])
-            protons = filter_events(pd.read_hdf(dl1_proton, key=dl1_cam_key), config["events_filters"])
+        data = pd.concat([gammas, protons], ignore_index=True)
+        print('Before drop NaN : ', len(data))
+        data = data.dropna()
+        print('After drop NaN : ', len(data))
 
-            data = pd.concat([gammas, protons], ignore_index=True)
-            print('Before drop NaN : ', len(data))
-            data = data.dropna()
-            print('After drop NaN : ', len(data))
+        dl2_data = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
+        print('DL2 length : ', len(dl2_data))
 
-            dl2_data = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
-            print('DL2 length : ', len(dl2_data))
+        write_dl2_dataframe(dl2_data, os.path.join(output_dir, 'dl2_{}.h5'.format(a_set)))
+        dl2[a_set] = dl2_data
 
-            write_dl2_dataframe(dl2_data, os.path.join(output_dir, 'dl2_{}.h5'.format(a_set)))
-            dl2[a_set] = dl2_data
-
-            del gammas, protons, dl2_data
-
-    else:
-        for a_set in ['train', 'test']:
-            filename = os.path.join(output_dir, 'dl2_{}.h5'.format(a_set))
-            dl2[a_set] = pd.read_hdf(filename, key='dl2/event/telescope/parameters/LST_LSTCam')
+        del gammas, protons, dl2_data
 
     selected_gammas_test = dl2['test'].query('reco_type==0 & mc_type==0')
     selected_gammas_train = dl2['train'].query('reco_type==0 & mc_type==0')
@@ -373,6 +366,7 @@ def main():
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'e_migration.png'), facecolor='white')
+    plt.close(fig)
 
     # Plot energy resolution and bias
     fig, ax = plt.subplots()
@@ -398,6 +392,7 @@ def main():
     ax.set_xlabel(r"$E_{RECO} [TeV]$")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'e_reso.png'), facecolor='white', dpi=800)
+    plt.close(fig)
 
     fig, ax = plt.subplots()
     ctaplot.plot_energy_bias(selected_gammas_train.mc_energy,
@@ -420,6 +415,7 @@ def main():
     ax.set_xlabel(r"$E_{RECO} [TeV]$")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'e_bias.png'), facecolor='white', dpi=800)
+    plt.close(fig)
 
     # Plot theta2
     fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
@@ -451,10 +447,10 @@ def main():
     ax1.legend()
     ax0.grid('on', which='both')
     ax1.grid('on', which='both')
-
     ax0.set_xlabel(None)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'theta2.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     # Plot angular resolution
     fig, ax = plt.subplots()
@@ -482,9 +478,9 @@ def main():
 
     ax.legend()
     ax.set_xlabel(r"$E_{RECO} [TeV]$")
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'angular_resolution.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     # Plot DISP vector
     fig, ((ax0, ax1), (ax2, ax3)) = plt.subplots(2, 2, sharex=True, sharey=True)
@@ -529,23 +525,19 @@ def main():
         axs.text(0.95, 0.09, 'train',
                 verticalalignment='bottom', horizontalalignment='right',
                 transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.5})
-
     for axs in [ax2, ax3]:
         axs.text(0.95, 0.09, 'test',
                 verticalalignment='bottom', horizontalalignment='right',
                 transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.8})
-
     ax2.set_xlabel('$DISP_{MC}$ [m]')
     ax3.set_xlabel('$DISP_{MC}$ [m]')
-
     ax0.set_ylabel('$DISP_{RECO}$ [m]')
     ax2.set_ylabel('$DISP_{RECO}$ [m]')
-
     ax0.set_title('DIPS dx')
     ax1.set_title('DISP dy')
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'disp_vector.png'), facecolor='white')
+    plt.close(fig)
 
     # Plot DISP source
     fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(12, 6))
@@ -561,7 +553,8 @@ def main():
                                   xy_line=False,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
                                   line_args=dict(color='black'),
-                                  ax=ax0)
+                                  ax=ax0
+                                  )
 
     ax0.scatter(np.mean(trueX), np.mean(trueY), color='red', marker='+', label='$DISP_{MC}$')
     del trueX, trueY, recoX, recoY
@@ -577,21 +570,20 @@ def main():
                                   xy_line=False,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
                                   line_args=dict(color='black'),
-                                  ax=ax1)
+                                  ax=ax1
+                                  )
 
     ax1.scatter(np.mean(trueX), np.mean(trueY), color='red', marker='+', label='$DISP_{MC}$')
     del trueX, trueY, recoX, recoY
 
     ax0.legend()
     ax1.legend()
-
     ax0.set_xlabel('x [m]')
     ax1.set_xlabel('x [m]')
-
     ax0.set_ylabel('y [m]')
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'disp_src.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     # Plot AUC ROC
     fig, ax = plt.subplots()
@@ -608,6 +600,7 @@ def main():
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'roc.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     if nbins is None:
         irf = ctaplot.ana.irf_cta()
@@ -620,13 +613,15 @@ def main():
                                                 dl2['train'].gammaness,
                                                 dl2['train'].mc_energy,
                                                 energy_bins=energy_bins,
-                                                ax=ax0)
+                                                ax=ax0
+                                                )
 
     ctaplot.plot_roc_curve_gammaness_per_energy(dl2['test'].mc_type,
                                                 dl2['test'].gammaness,
                                                 dl2['test'].mc_energy,
                                                 energy_bins=energy_bins,
-                                                ax=ax1)
+                                                ax=ax1
+                                                )
 
     auc_score = []
     for axs in [ax0, ax1]:
@@ -651,9 +646,9 @@ def main():
 
     ax0.set_ylabel(r'$\gamma$ True Positive Rate')
     ax1.set_ylabel(None)
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'roc_per_energy_bin.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     auc_score = np.array(auc_score, dtype=float)
     mid_energy = 0.5 * (energy_bins[:-1][1:] + energy_bins[:-1][:-1])
@@ -673,6 +668,7 @@ def main():
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'roc_vs_energy.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
     ax0.hist(dl2['train'][dl2['train']['mc_type'] == 0]['gammaness'], bins=100, label='$\gamma$', alpha=0.65)
@@ -688,6 +684,7 @@ def main():
     ax0.set_ylabel('Counts')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'gammaness.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     config = read_configuration_file(config_file)
     reg_features_names = config['regression_features']
@@ -703,6 +700,7 @@ def main():
     ax.set_xlabel('Importance')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'energy_reg.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     fig, ax = plt.subplots()
     plot_dl2.plot_importances(disp, reg_features_names, ax=ax)
@@ -710,6 +708,7 @@ def main():
     ax.set_xlabel('Importance')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'disp_reg.png'), facecolor='white', dpi=600)
+    plt.close(fig)
 
     fig, ax = plt.subplots()
     plot_dl2.plot_importances(clf, clf_features_names, ax=ax)
@@ -717,6 +716,9 @@ def main():
     ax.set_xlabel('Importance')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'gh_class.png'), facecolor='white', dpi=600)
+    plt.close(fig)
+
+    del dl2
 
 
 if __name__ == '__main__':
