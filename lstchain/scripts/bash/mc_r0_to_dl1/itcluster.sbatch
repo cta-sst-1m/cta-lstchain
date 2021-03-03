@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #
-#SBATCH --time=2:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1
-#SBATCH --partition=short
+#SBATCH --partition=long
 #SBATCH --job-name=dl0_to_dl1-%a
 #SBATCH --output=dl0_to_dl1-%A-%a.out
 #SBATCH --error=dl0_to_dl1-%A-%a.err
