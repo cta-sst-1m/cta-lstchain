@@ -24,7 +24,7 @@ cam_key="dl1/event/telescope/parameters/LST_LSTCam"
 
 percent_event_train=(30 50)
 ARRAY_INTENSITY=(0 100 200)
-ARRAY_LEAKAGE=(0.0 0.2)
+ARRAY_LEAKAGE=(0.0 0.25 0.50 0.75 1.0)
 
 for percentage in "${percent_event_train[@]}"; do
 
@@ -43,9 +43,9 @@ for percentage in "${percent_event_train[@]}"; do
         production_name="Prod5_${folder}_with_lstchain_v.${lstchain_version}_leak_${leakage}_intensity_${intensity}"
 
         if [[ "${folder}" == "tag_nominal_LST_09_2020_v2" ]]; then
-          json_config_file="/fefs/home/david.miranda/software/cta-lstchain_v.${lstchain_version}/lstchain/data/pmt_cam.json"
+          json_config_file="/fefs/home/david.miranda/software/cta-sipm-lstchain_v.${lstchain_version}/lstchain/data/pmt_cam.json"
         else
-          json_config_file="/fefs/home/david.miranda/software/cta-lstchain_v.${lstchain_version}/lstchain/data/sipm_cam.json"
+          json_config_file="/fefs/home/david.miranda/software/cta-sipm-lstchain_v.${lstchain_version}/lstchain/data/sipm_cam.json"
         fi
 
         bash ${working_dir}/train_rf.sh "${input_folder}" "${output_folder}" "${json_config_file}" "${cam_key}" "${intensity}" "${leakage}" "${production_name}" "${working_dir}" "${cluster}"
