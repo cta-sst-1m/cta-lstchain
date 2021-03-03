@@ -17,13 +17,13 @@
 
 
 lstchain_version="0.6.3"
-path_to_lstchain="/home/david.miranda/software/cta-lstchain_v.${lstchain_version}"
+path_to_lstchain="/home/david.miranda/software/cta-sipm-lstchain_v.${lstchain_version}"
 cluster="itcluster"
 rf_type="standard"
 cam_key="dl1/event/telescope/parameters/LST_LSTCam"
 
 percent_event_train=(30 50)
-ARRAY_INTENSITY=(100 200)
+ARRAY_INTENSITY=(0 100 200)
 ARRAY_LEAKAGE=(0.0 0.2)
 
 for percentage in "${percent_event_train[@]}"; do
@@ -34,13 +34,11 @@ for percentage in "${percent_event_train[@]}"; do
 
   working_dir="${path_to_lstchain}/lstchain/scripts/bash/rf_training/${rf_type}/"
 
-  for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns"; do
-#  for folder in "mono-lst-sipm-borofloat-3ns" "mono-lst-sipm-borofloat-5ns" "mono-lst-sipm-borofloat-7ns"; do
-#  for folder in "tag_nominal_LST_09_2020_v2"; do
+  for folder in "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns" "mono-lst-sipm-borofloat-3ns" "mono-lst-sipm-borofloat-5ns" "mono-lst-sipm-borofloat-7ns" "tag_nominal_LST_09_2020_v2"; do
     for leakage in "${ARRAY_LEAKAGE[@]}"; do
       for intensity in "${ARRAY_INTENSITY[@]}"; do
 
-        input_folder="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}"
+        input_folder="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}/"
         output_folder="/fefs/aswg/workspace/david.miranda/data/prod5/rf/lstchain_v.${lstchain_version}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
         production_name="Prod5_${folder}_with_lstchain_v.${lstchain_version}_leak_${leakage}_intensity_${intensity}"
 

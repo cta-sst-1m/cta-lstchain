@@ -31,7 +31,7 @@ echo "*-*-*-*-*-*-*-*-*-*  cluster :              $cluster "
 echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 
 train_percent=${percentage}
-test_percent=$((100-${train_percent}))
+test_percent=$((100-train_percent))
 split_tag="${train_percent}.${test_percent}"
 
 echo "run the merging for production $production_name"
@@ -59,7 +59,7 @@ for particle in "proton" "electron" "gamma_on" "gamma_off" "gamma_diffuse"; do
       n_dl1_files=$(cat $list_dl1_files | wc -l)
       n_dl1_train=$(( $n_dl1_files*$percentage/100 ))
     else
-      percentage=100
+      percentage=50
       n_dl1_files=$(cat $list_dl1_files | wc -l)
       n_dl1_train=$(( $n_dl1_files*$percentage/100 ))
     fi
@@ -93,7 +93,7 @@ for particle in "proton" "electron" "gamma_on" "gamma_off" "gamma_diffuse"; do
                 continue
             fi
 #            ln -t $run_dir -s $f; # when working with file
-             ln -s $f $run_dir/$(basename $f); # when working with simlink of file (link of link)
+            ln -s $f $run_dir/$(basename $f); # when working with simlink of file (link of link)
         done
         merged_file="${output_folder}/${split_tag}/dl1_${particle}_merge_${run}.h5"
         if [ -e $merged_file ]; then

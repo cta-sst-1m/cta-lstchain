@@ -43,7 +43,7 @@ mkdir -p "${output_folder}"
 # training in gamma diffuse 100% and 50% of protons
 # next step script would test in 100% gamma point source and and 50% of protons
 
-GAMMAFILE="${input_folder}/dl1_gamma_diffuse_train.h5"
+GAMMAFILE="${input_folder}/dl1_gamma_diffuse_merge_train.h5"
 PROTONFILE="${input_folder}/dl1_proton_merge_train.h5"
 PATH_MODELS="${output_folder}"
 CONFIG_FILE="${json_config_file}"
@@ -60,7 +60,7 @@ export working_dir=${working_dir}
 export INTENSITY=${INTENSITY}
 export LEAKAGE=${LEAKAGE}
 
-cd "${output_folder}"
+cd "${PATH_MODELS}"
 
 if [[ "${cluster}" == "camk" ]]; then
   echo "Not yet implemented"

@@ -26,7 +26,7 @@ echo "*-*-*-*-*-*-*-*-*-*  working_dir :        $working_dir "
 echo "*-*-*-*-*-*-*-*-*-*  cluster :            $cluster "
 echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 
-mkdir -p $dl1_data_dir
+mkdir -p $output_folder
 nfile_per_job=10
 
 if [ ! -e $json_config_file ]; then
@@ -54,27 +54,27 @@ for particle in "proton" "gamma_on" "gamma_off" "gamma_diffuse" "electron"; do
   # you can specify this with a %. For example the following line will run an array with n_jobs jobs, but will only run 50 of them at a time
   # PBSARRAY="1-${n_jobs}%50"
   if [[ ${particle} == "gamma_on" ]]; then
-    jobs_per_time=50
-    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
-    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
-    echo "${jobs_per_time} jobs per $particle at same time"
-  elif [[ ${particle} == "gamma_off" ]]; then
-    jobs_per_time=50
-    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
-    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
-    echo "${jobs_per_time} jobs per $particle at same time"
-  elif [[ ${particle} == "gamma_diffuse" ]]; then
-    jobs_per_time=50
-    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
-    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
-    echo "${jobs_per_time} jobs per $particle at same time"
-  elif [[ ${particle} == "proton" ]]; then
     jobs_per_time=100
     PBSARRAY="1-${n_jobs}%${jobs_per_time}"
     SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
     echo "${jobs_per_time} jobs per $particle at same time"
+  elif [[ ${particle} == "gamma_off" ]]; then
+    jobs_per_time=100
+    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
+    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
+    echo "${jobs_per_time} jobs per $particle at same time"
+  elif [[ ${particle} == "gamma_diffuse" ]]; then
+    jobs_per_time=200
+    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
+    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
+    echo "${jobs_per_time} jobs per $particle at same time"
+  elif [[ ${particle} == "proton" ]]; then
+    jobs_per_time=500
+    PBSARRAY="1-${n_jobs}%${jobs_per_time}"
+    SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
+    echo "${jobs_per_time} jobs per $particle at same time"
   elif [[ ${particle} == "electron" ]]; then
-    jobs_per_time=50
+    jobs_per_time=200
     PBSARRAY="1-${n_jobs}%${jobs_per_time}"
     SLURM_ARRAY="0-${n_jobs}%${jobs_per_time}"
     echo "${jobs_per_time} jobs per $particle at same time"
