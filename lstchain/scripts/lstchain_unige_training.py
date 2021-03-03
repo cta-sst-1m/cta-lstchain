@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+import json
 import argparse
 from lstchain.reco import dl1_to_dl2
 from distutils.util import strtobool
@@ -140,6 +142,9 @@ def main():
     if args.leakage_pixel_width_2 is not None:
         config['events_filters']['leakage_pixel_width_2'][1] = args.leakage_pixel_width_2
 
+    with open(os.path.join(args.path_models, 'config.json'), "w") as f:
+        json.dump(config, f, indent=2)
+
     print("Configuration file used :")
     print(config)
 
@@ -150,6 +155,7 @@ def main():
                             custom_config=config,
                             dl1_params_camera_key=args.dl1_params_camera_key
                             )
+
 
 
 if __name__ == '__main__':
