@@ -21,10 +21,26 @@ from lstchain.io.io import dl1_params_lstcam_key
 
 import ctaplot
 import astropy.units as u
+from astropy.table import QTable
 import joblib
 
-irf = ctaplot.irf_cta()
+from lstchain.io.io import (
+    dl1_params_lstcam_key,
+    dl1_params_src_dep_lstcam_key,
+    dl1_images_lstcam_key,
+    dl2_params_lstcam_key,
+    read_dl2_to_pyirf
+)
 
+from lstchain.io import (
+    read_configuration_file,
+    standard_config,
+    replace_config,
+    write_dl2_dataframe,
+    get_dataset_keys,
+)
+
+irf = ctaplot.irf_cta()
 
 parser = argparse.ArgumentParser(description="Train Random Forests.")
 
@@ -61,6 +77,22 @@ parser.add_argument('--dl1_cam_key', type=str,
 parser.add_argument('--output_dir', type=str,
                     dest='output_dir',
                     help='Output directory to store the data and plots')
+
+parser.add_argument('--emin', type=float,
+                    dest='emin', default=None,
+                    help='lower bound of the energy bins')
+
+parser.add_argument('--emax', type=float,
+                    dest='emax', default=None,
+                    help='higher bound of the energy bins')
+
+parser.add_argument('--nbins', type=int,
+                    dest='nbins', default=None,
+                    help='Total number of energy bins in the emin to emax range')
+
+parser.add_argument('--dl2_path', type=str,
+                    dest='dl2_path', default=None,
+                    help='dl2 path directory, if any')
 
 
 args = parser.parse_args()
@@ -200,13 +232,18 @@ def main():
     path_to_models = args.path_to_models
     dl1_cam_key = args.dl1_cam_key
     output_dir = args.output_dir
+    nbins = args.nbins
+    emin = args.emin
+    emax = args.emax
+
+    dl2_path = args.dl2_path
 
     custom_config = {}
 
     if config_file is not None:
         try:
             custom_config = read_configuration_file(config_file)
-        except("Custom configuration could not be loaded !!!"):
+        except "Custom configuration could not be loaded!":
             pass
 
     config = replace_config(standard_config, custom_config)
@@ -215,154 +252,245 @@ def main():
     reg_disp_vector = joblib.load(path_to_models + '/reg_disp_vector.sav')
     cls_gh = joblib.load(path_to_models + '/cls_gh.sav')
 
-    gammas = filter_events(pd.read_hdf(dl1_gamma_test, key=dl1_cam_key), config["events_filters"])
-    proton = filter_events(pd.read_hdf(dl1_proton_test, key=dl1_cam_key), config["events_filters"])
-    data = pd.concat([gammas, proton], ignore_index=True)
+    dl2 = {}
 
-    dl2 = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
+    if dl2_path is None:
 
-    selected_gammas = dl2.query('reco_type==0 & mc_type==0')
+        for a_set in ['train', 'test']:
 
-    if (len(selected_gammas) == 0):
-        print('No gammas selected, I will not plot any output')
+            if a_set is 'train':
+                dl1_gamma = dl1_gamma_train
+                dl1_proton = dl1_proton_train
+            elif a_set is 'test':
+                dl1_gamma = dl1_gamma_test
+                dl1_proton = dl1_proton_test
+            else:
+                print('wrong set!')
+                sys.exit()
+
+            gammas = filter_events(pd.read_hdf(dl1_gamma, key=dl1_cam_key), config["events_filters"])
+            protons = filter_events(pd.read_hdf(dl1_proton, key=dl1_cam_key), config["events_filters"])
+
+            data = pd.concat([gammas, protons], ignore_index=True)
+            print('Before drop NaN : ', len(data))
+            data = data.dropna()
+            print('After drop NaN : ', len(data))
+
+            dl2_data = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
+            print('DL2 length : ', len(dl2_data))
+
+            write_dl2_dataframe(dl2_data, os.path.join(output_dir, 'dl2_{}.h5'.format(a_set)))
+            dl2[a_set] = dl2_data
+
+            del gammas, protons, dl2_data
+
+    else:
+        for a_set in ['train', 'test']:
+            filename = os.path.join(output_dir, 'dl2_{}.h5'.format(a_set))
+            dl2[a_set] = pd.read_hdf(filename, key='dl2/event/telescope/parameters/LST_LSTCam')
+
+    selected_gammas_test = dl2['test'].query('reco_type==0 & mc_type==0')
+    selected_gammas_train = dl2['train'].query('reco_type==0 & mc_type==0')
+
+    if len(selected_gammas_test) == 0 or len(selected_gammas_train) == 0:
+        print('No gammas selected, outputs will not be produced')
         sys.exit()
 
-    for a_type in ['reco_type', 'mc_type']:
+    # Plot parameters
+    for dataset in ['train', 'test']:
+        for a_type in ['reco_type', 'mc_type']:
+            if a_type is 'reco_type':
+                true_particle = False
+            elif a_type is 'mc_type':
+                true_particle = True
+            else:
+                print('unknown type : mc_type or reco_type ?')
+                exit(1)
 
-        output_dir_type = os.path.join(output_dir, a_type)
+            output_dir_type = os.path.join(output_dir, dataset, a_type)
 
-        try:
-            os.makedirs(output_dir_type, exist_ok=True)
-            print("Directory ", output_dir_type, " Created ")
-        except FileExistsError:
-            print("Directory ", output_dir_type, " already exists")
+            try:
+                os.makedirs(output_dir_type, exist_ok=True)
+                print("Directory ", output_dir_type, " Created")
+            except FileExistsError:
+                print("Directory ", output_dir_type, " already exists")
 
-        if a_type is 'reco_type':
-            true_particle = False
-        elif a_type is 'mc_type':
-            true_particle = True
-        else:
-            print('unknown type : mc or reco?')
-            exit(1)
+            plot_features(data=dl2[dataset],
+                          intensity_cut=config['events_filters']['intensity'][0],
+                          leakage_cut=config['events_filters']['leakage_intensity_width_2'][1],
+                          r_cut=config['events_filters']['r'][1],
+                          output_dir=output_dir_type,
+                          true_particle=true_particle
+                          )
 
-        plot_features(data=dl2,
-                      intensity_cut=config['events_filters']['intensity'][0],
-                      leakage_cut=config['events_filters']['leakage_intensity_width_2'][1],
-                      r_cut=config['events_filters']['r'][1],
-                      output_dir=output_dir_type,
-                      true_particle=true_particle
-                      )
+    for a_set in ['train', 'test']:
 
-    # Compute energy resolution and bias
-    if os.path.exists(os.path.join(output_dir, 'e_reso.h5')):
-        os.remove(os.path.join(output_dir, 'e_reso.h5'))
-    plot_dl2.energy_results(dl2_data=selected_gammas,
-                            points_outfile=os.path.join(output_dir, 'e_reso.h5'),
-                            plot_outfile=os.path.join(output_dir, 'e_reso_all.png')
-                            )
+        if a_set is 'train':
+            selected_gammas = selected_gammas_train
+        if a_set is 'test':
+            selected_gammas = selected_gammas_test
 
-    # Plot energy resolution and bias
-    fig, ax0 = plt.subplots()
-    ax1 = ax0.twinx()
-    ctaplot.plot_energy_resolution(selected_gammas.mc_energy,
-                                   selected_gammas.reco_energy,
-                                   ax=ax0,
-                                   bias_correction=False,
-                                   color='tab:red',
-                                   label='resolution')
+        if os.path.exists(os.path.join(output_dir, 'e_reso_{}.h5'.format(a_set))):
+            os.remove(os.path.join(output_dir, 'e_reso_{}.h5'.format(a_set)))
+        if os.path.exists(os.path.join(output_dir, 'ang_reso_{}.h5'.format(a_set))):
+            os.remove(os.path.join(output_dir, 'ang_reso_{}.h5'.format(a_set)))
 
-    ctaplot.plot_energy_resolution_cta_requirement('north', ax=ax0, color='tab:gray', linestyle='dashed')
-    ctaplot.plot_energy_bias(selected_gammas.mc_energy,
-                             selected_gammas.reco_energy,
-                             ax=ax1,
-                             label='Bias')
+        plot_dl2.energy_results(dl2_data=selected_gammas,
+                                points_outfile=os.path.join(output_dir, 'e_reso_{}.h5'.format(a_set)),
+                                plot_outfile=os.path.join(output_dir, 'e_reso_{}.png'.format(a_set))
+                                )
+        plot_dl2.direction_results(dl2_data=selected_gammas,
+                                   points_outfile=os.path.join(output_dir, 'ang_reso_{}.h5'.format(a_set)),
+                                   plot_outfile=os.path.join(output_dir, 'ang_reso_{}.png'.format(a_set))
+                                   )
 
-    ax1.set_ylabel(r"Energy bias", color='tab:blue')
-    ax0.set_ylabel(r"${\Delta E/E}_{68}$", color='tab:red')
-    ax0.set_xlabel(r"$E_{RECO} [TeV]$")
+    # Plot Energy migration
+    fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(12, 6))
 
-    ax0.set_title("")
-    ax1.set_title("")
-    ax0.set_ylim(-0.1, 0.5)
-    ax1.set_ylim(-0.3, 0.3)
-
-    ax0.get_legend().remove()
-    h0, l0 = ax0.get_legend_handles_labels()
-    h1, l1 = ax1.get_legend_handles_labels()
-    h = h0 + h1
-    l = l0 + l1
-    box = (0.5, 1.02)
-    ax0.legend(handles=h, loc="lower center", ncol=3,
-               bbox_to_anchor=box, frameon=False, fontsize=12)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'e_reso_bias.png'), facecolor='white', dpi=800)
-
-    # Plot energy resolution and bias
-    fig, ax = plt.subplots()
-    ctaplot.plot_migration_matrix(selected_gammas.mc_energy.apply(np.log10),
-                                  selected_gammas.reco_energy.apply(np.log10),
+    ctaplot.plot_migration_matrix(selected_gammas_train.mc_energy.apply(np.log10),
+                                  selected_gammas_train.reco_energy.apply(np.log10),
                                   colorbar=True,
                                   xy_line=True,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm()),
                                   line_args=dict(color='black'),
-                                  ax=ax
-                                  )
+                                  ax=ax0)
 
-    ax.set_xlabel(r"$log_{10} E_{MC}$ [TeV]")
-    ax.set_ylabel(r"$log_{10} E_{RECO}$ [TeV]")
+    ctaplot.plot_migration_matrix(selected_gammas_test.mc_energy.apply(np.log10),
+                                  selected_gammas_test.reco_energy.apply(np.log10),
+                                  colorbar=True,
+                                  xy_line=True,
+                                  hist2d_args=dict(norm=matplotlib.colors.LogNorm()),
+                                  line_args=dict(color='black'),
+                                  ax=ax1)
+    ax0.grid('both')
+    ax1.grid('both')
+    ax0.set_title('train')
+    ax1.set_title('test')
+
+    ax0.set_xlabel(r"$log_{10} E_{MC}$ [TeV]")
+    ax1.set_xlabel(r"$log_{10} E_{MC}$ [TeV]")
+    ax0.set_ylabel(r"$log_{10} E_{RECO}$ [TeV]")
+
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'e_migration.png'), facecolor='white', dpi=600)
+    plt.savefig(os.path.join(output_dir, 'e_migration.png'), facecolor='white')
 
-    # Compute angular resolution
-    if os.path.exists(os.path.join(output_dir, 'angular_resolution.h5')):
-        os.remove(os.path.join(output_dir, 'angular_resolution.h5'))
-    plot_dl2.direction_results(selected_gammas,
-                               points_outfile=os.path.join(output_dir, 'angular_resolution.h5'),
-                               plot_outfile=os.path.join(output_dir, 'angular_resolution_all.png')
-                               )
-
-    # Plot angular resolution
+    # Plot energy resolution and bias
     fig, ax = plt.subplots()
-    ctaplot.plot_theta2(selected_gammas.reco_alt,
-                        selected_gammas.reco_az,
-                        selected_gammas.mc_alt,
-                        selected_gammas.mc_az,
-                        ax=ax,
+    ctaplot.plot_energy_resolution(selected_gammas_train.mc_energy,
+                                   selected_gammas_train.reco_energy,
+                                   ax=ax,
+                                   bias_correction=False,
+                                   color='tab:blue',
+                                   fmt='o',
+                                   label='train')
+
+    ctaplot.plot_energy_resolution(selected_gammas_test.mc_energy,
+                                   selected_gammas_test.reco_energy,
+                                   ax=ax,
+                                   bias_correction=False,
+                                   color='tab:orange',
+                                   fmt='^',
+                                   label='test')
+
+    ax.legend()
+    ax.grid('on', which='both')
+    ax.set_ylabel(r"${\Delta E/E}_{68}$")
+    ax.set_xlabel(r"$E_{RECO} [TeV]$")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'e_reso.png'), facecolor='white', dpi=800)
+
+    fig, ax = plt.subplots()
+    ctaplot.plot_energy_bias(selected_gammas_train.mc_energy,
+                             selected_gammas_train.reco_energy,
+                             ax=ax,
+                             fmt='o',
+                             color='tab:blue',
+                             label='train')
+
+    ctaplot.plot_energy_bias(selected_gammas_test.mc_energy,
+                             selected_gammas_test.reco_energy,
+                             ax=ax,
+                             fmt='^',
+                             color='tab:orange',
+                             label='test')
+
+    ax.legend()
+    ax.grid('on', which='both')
+    ax.set_ylabel(r"Energy bias")
+    ax.set_xlabel(r"$E_{RECO} [TeV]$")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'e_bias.png'), facecolor='white', dpi=800)
+
+    # Plot theta2
+    fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
+    ctaplot.plot_theta2(selected_gammas_train.reco_alt,
+                        selected_gammas_train.reco_az,
+                        selected_gammas_train.mc_alt,
+                        selected_gammas_train.mc_az,
+                        ax=ax0,
                         bins=100,
+                        histtype='step',
+                        color='tab:blue',
+                        label='train',
                         range=(0, 1)
                         )
+
+    ctaplot.plot_theta2(selected_gammas_test.reco_alt,
+                        selected_gammas_test.reco_az,
+                        selected_gammas_test.mc_alt,
+                        selected_gammas_test.mc_az,
+                        ax=ax1,
+                        bins=100,
+                        histtype='step',
+                        color='tab:orange',
+                        label='test',
+                        range=(0, 1)
+                        )
+
+    ax0.legend()
+    ax1.legend()
+    ax0.grid('on', which='both')
+    ax1.grid('on', which='both')
+
+    ax0.set_xlabel(None)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'theta2.png'), facecolor='white', dpi=600)
 
+    # Plot angular resolution
     fig, ax = plt.subplots()
-
-    ctaplot.plot_angular_resolution_per_energy(selected_gammas.reco_alt,
-                                               selected_gammas.reco_az,
-                                               selected_gammas.mc_alt,
-                                               selected_gammas.mc_az,
-                                               selected_gammas.reco_energy,
+    ctaplot.plot_angular_resolution_per_energy(selected_gammas_train.reco_alt,
+                                               selected_gammas_train.reco_az,
+                                               selected_gammas_train.mc_alt,
+                                               selected_gammas_train.mc_az,
+                                               selected_gammas_train.reco_energy,
                                                ax=ax,
-                                               label='resolution'
+                                               label='train',
+                                               color='tab:blue',
+                                               fmt='o'
                                                )
 
-    ctaplot.plot_angular_resolution_cta_requirement('north', ax=ax, color='tab:gray', linestyle='dashed')
+    ctaplot.plot_angular_resolution_per_energy(selected_gammas_test.reco_alt,
+                                               selected_gammas_test.reco_az,
+                                               selected_gammas_test.mc_alt,
+                                               selected_gammas_test.mc_az,
+                                               selected_gammas_test.reco_energy,
+                                               ax=ax,
+                                               label='test',
+                                               color='tab:orange',
+                                               fmt='^'
+                                               )
 
-    ax.set_title("")
-    ax.set_ylim(-0.1, 1.0)
+    ax.legend()
     ax.set_xlabel(r"$E_{RECO} [TeV]$")
-
-    h, l = ax.get_legend_handles_labels()
-    box = (0.5, 1.02)
-    ax.legend(handles=h, loc="lower center", ncol=3,
-              bbox_to_anchor=box, frameon=False, fontsize=12)
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'angular_resolution.png'), facecolor='white', dpi=600)
 
-    fig, (ax0, ax1) = plt.subplots(1, 2)
-    ctaplot.plot_migration_matrix(selected_gammas.disp_dx,
-                                  selected_gammas.reco_disp_dx,
+    # Plot DISP vector
+    fig, ((ax0, ax1), (ax2, ax3)) = plt.subplots(2, 2, sharex=True, sharey=True)
+
+    ctaplot.plot_migration_matrix(selected_gammas_train.disp_dx,
+                                  selected_gammas_train.reco_disp_dx,
                                   colorbar=True,
                                   xy_line=True,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
@@ -370,8 +498,8 @@ def main():
                                   ax=ax0
                                   )
 
-    ctaplot.plot_migration_matrix(selected_gammas.disp_dy,
-                                  selected_gammas.reco_disp_dy,
+    ctaplot.plot_migration_matrix(selected_gammas_train.disp_dy,
+                                  selected_gammas_train.reco_disp_dy,
                                   colorbar=True,
                                   xy_line=True,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
@@ -379,114 +507,187 @@ def main():
                                   ax=ax1
                                   )
 
-    ax0.set_xlabel('$DISP_{MC}$')
-    ax0.set_ylabel('$DISP_{RECO}$')
+    ctaplot.plot_migration_matrix(selected_gammas_test.disp_dx,
+                                  selected_gammas_test.reco_disp_dx,
+                                  colorbar=True,
+                                  xy_line=True,
+                                  hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
+                                  line_args=dict(color='black'),
+                                  ax=ax2
+                                  )
+
+    ctaplot.plot_migration_matrix(selected_gammas_test.disp_dy,
+                                  selected_gammas_test.reco_disp_dy,
+                                  colorbar=True,
+                                  xy_line=True,
+                                  hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
+                                  line_args=dict(color='black'),
+                                  ax=ax3
+                                  )
+
+    for axs in [ax0, ax1]:
+        axs.text(0.95, 0.09, 'train',
+                verticalalignment='bottom', horizontalalignment='right',
+                transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.5})
+
+    for axs in [ax2, ax3]:
+        axs.text(0.95, 0.09, 'test',
+                verticalalignment='bottom', horizontalalignment='right',
+                transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.8})
+
+    ax2.set_xlabel('$DISP_{MC}$ [m]')
+    ax3.set_xlabel('$DISP_{MC}$ [m]')
+
+    ax0.set_ylabel('$DISP_{RECO}$ [m]')
+    ax2.set_ylabel('$DISP_{RECO}$ [m]')
+
     ax0.set_title('DIPS dx')
-
-    ax1.set_xlabel('$DISP_{MC}$')
     ax1.set_title('DISP dy')
+
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'disp_vector.png'), facecolor='white', dpi=800)
+    plt.savefig(os.path.join(output_dir, 'disp_vector.png'), facecolor='white')
 
-    trueX = dl2[dl2['mc_type'] == 0]['src_x']
-    trueY = dl2[dl2['mc_type'] == 0]['src_y']
-    recoX = dl2[dl2['reco_type'] == 0]['reco_src_x']
-    recoY = dl2[dl2['reco_type'] == 0]['reco_src_y']
+    # Plot DISP source
+    fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(12, 6))
 
-    fig, ax = plt.subplots()
+    trueX = selected_gammas_train[selected_gammas_train['mc_type'] == 0]['src_x']
+    trueY = selected_gammas_train[selected_gammas_train['mc_type'] == 0]['src_y']
+    recoX = selected_gammas_train[selected_gammas_train['reco_type'] == 0]['reco_src_x']
+    recoY = selected_gammas_train[selected_gammas_train['reco_type'] == 0]['reco_src_y']
+
     ctaplot.plot_migration_matrix(recoX,
                                   recoY,
                                   colorbar=True,
                                   xy_line=False,
                                   hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
                                   line_args=dict(color='black'),
-                                  ax=ax
-                                  )
-    ax.scatter(np.mean(trueX), np.mean(trueY), color='red', marker='+', label='$DISP_{MC}$')
-    ax.legend()
-    ax.set_xlabel('x [m]')
-    ax.set_ylabel('y [m]')
+                                  ax=ax0)
+
+    ax0.scatter(np.mean(trueX), np.mean(trueY), color='red', marker='+', label='$DISP_{MC}$')
+    del trueX, trueY, recoX, recoY
+
+    trueX = selected_gammas_test[selected_gammas_test['mc_type'] == 0]['src_x']
+    trueY = selected_gammas_test[selected_gammas_test['mc_type'] == 0]['src_y']
+    recoX = selected_gammas_test[selected_gammas_test['reco_type'] == 0]['reco_src_x']
+    recoY = selected_gammas_test[selected_gammas_test['reco_type'] == 0]['reco_src_y']
+
+    ctaplot.plot_migration_matrix(recoX,
+                                  recoY,
+                                  colorbar=True,
+                                  xy_line=False,
+                                  hist2d_args=dict(norm=matplotlib.colors.LogNorm(), bins=100),
+                                  line_args=dict(color='black'),
+                                  ax=ax1)
+
+    ax1.scatter(np.mean(trueX), np.mean(trueY), color='red', marker='+', label='$DISP_{MC}$')
+    del trueX, trueY, recoX, recoY
+
+    ax0.legend()
+    ax1.legend()
+
+    ax0.set_xlabel('x [m]')
+    ax1.set_xlabel('x [m]')
+
+    ax0.set_ylabel('y [m]')
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'disp_src.png'), facecolor='white', dpi=600)
 
-    # Plot regresor and classifier
+    # Plot AUC ROC
     fig, ax = plt.subplots()
-    ctaplot.plot_roc_curve_gammaness(dl2.mc_type, dl2.gammaness, ax=ax)
-    ax.set_title('ROC Curve : all energies')
+    ctaplot.plot_roc_curve_gammaness(dl2['train'].mc_type, dl2['train'].gammaness, ax=ax)
+    ctaplot.plot_roc_curve_gammaness(dl2['test'].mc_type, dl2['test'].gammaness, ax=ax)
+    ax.set_title(None)
     ax.set_ylabel(r'$\gamma$ True Positive Rate')
     ax.set_xlabel(r'$\gamma$ False Positive Rate')
+
+    h, l = ax.get_legend_handles_labels()
+    l[0] = l[0].replace('auc score = ', 'train : ')
+    l[1] = l[1].replace('auc score = ', 'test : ')
+    ax.legend(handles=h, labels=l, title='Dataset : AUC Score', loc=4)
+
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'roc_all.png'), facecolor='white', dpi=600)
+    plt.savefig(os.path.join(output_dir, 'roc.png'), facecolor='white', dpi=600)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ctaplot.plot_roc_curve_gammaness_per_energy(dl2.mc_type,
-                                                dl2.gammaness,
-                                                dl2.mc_energy,
-                                                ax=ax
-                                                )
-    box = (0.75, 0.4)
-    ax.set_xlim(-0.05, 1.05)
-    ax.legend(loc="center left", ncol=1, bbox_to_anchor=box, frameon=True, fontsize=9)
+    if nbins is None:
+        irf = ctaplot.ana.irf_cta()
+        energy_bins = irf.E_bin
+    else:
+        energy_bins = np.logspace(np.log10(emin), np.log10(emax), nbins + 1)
 
-    ax.set_title('ROC Curve : per energies bin')
-    ax.set_ylabel(r'$\gamma$ True Positive Rate')
-    ax.set_xlabel(r'$\gamma$ False Positive Rate')
+    fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(14, 7))
+    ctaplot.plot_roc_curve_gammaness_per_energy(dl2['train'].mc_type,
+                                                dl2['train'].gammaness,
+                                                dl2['train'].mc_energy,
+                                                energy_bins=energy_bins,
+                                                ax=ax0)
+
+    ctaplot.plot_roc_curve_gammaness_per_energy(dl2['test'].mc_type,
+                                                dl2['test'].gammaness,
+                                                dl2['test'].mc_energy,
+                                                energy_bins=energy_bins,
+                                                ax=ax1)
+
+    auc_score = []
+    for axs in [ax0, ax1]:
+        h, l = axs.get_legend_handles_labels()
+        auc = []
+        for i, label in enumerate(l):
+            auc.append(l[i].split('= ')[1])
+            l[i] = l[i].replace('[', '[ ').replace(']', ' ]').replace('TeV', '').replace(':', ' - ').replace(
+                '- auc score = ', ' : ')
+        auc_score.append(auc)
+        if axs is ax0:
+            title = 'Train - E bin [TeV] : AUC Score'
+        elif axs is ax1:
+            title = 'Test - E bin [TeV] : AUC Score'
+        else:
+            print('axis error')
+            sys.exit()
+
+        axs.legend(handles=h, labels=l, title=title, fontsize=10, loc=4)
+        axs.set_title(None)
+        axs.set_xlabel(r'$\gamma$ False Positive Rate')
+
+    ax0.set_ylabel(r'$\gamma$ True Positive Rate')
+    ax1.set_ylabel(None)
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'roc_per_energy_bin.png'), facecolor='white', dpi=600)
 
-    h, l = ax.get_legend_handles_labels()
-
-    irf = ctaplot.ana.irf_cta()
-    energy_bins = irf.E_bin
-
-    ebin_min = []
-    ebin_max = []
-    roc = []
-    for line in l:
-        bins = line.split('= ')[0].replace("]TeV - auc score", "").replace("[", "")
-
-        ebin_min.append(float(bins.split(':')[0]))
-        ebin_max.append(float(bins.split(':')[1]))
-        roc.append(float(line.split('= ')[1]))
-
-    ebin_min = np.array(ebin_min)
-    ebin_max = np.array(ebin_max)
-    roc = np.array(roc)
-
-    df_roc = pd.DataFrame(
-        {"ebin_min": ebin_min,
-         "ebin_max": ebin_max,
-         "mid_energy": 0.5 * (ebin_min + ebin_max),
-         "ebin_min_true": np.zeros_like(ebin_min),
-         "ebin_max_true": np.zeros_like(ebin_max),
-         "de_min": np.zeros_like(ebin_min),
-         "de_max": np.zeros_like(ebin_max),
-         "roc": roc})
-
-    for index, row in df_roc.iterrows():
-        for j in range(len(energy_bins) - 1):
-            if (row.mid_energy <= energy_bins[j + 1]) * (row.mid_energy > energy_bins[j]):
-                print("{} < {} ≤ {}".format(energy_bins[j], row.mid_energy, energy_bins[j + 1]))
-                row['ebin_min_true'] = energy_bins[j]
-                row['ebin_max_true'] = energy_bins[j + 1]
-
-                row['de_min'] = row['mid_energy'] - energy_bins[j]
-                row['de_max'] = energy_bins[j + 1] - row['mid_energy']
-
-    errors = [df_roc['de_min'], df_roc['de_max']]
+    auc_score = np.array(auc_score, dtype=float)
+    mid_energy = 0.5 * (energy_bins[:-1][1:] + energy_bins[:-1][:-1])
+    de_min = mid_energy - energy_bins[:-1][:-1]
+    de_max = energy_bins[:-1][1:] - mid_energy
 
     fig, ax = plt.subplots()
-    ax.errorbar(df_roc['mid_energy'], df_roc['roc'], xerr=errors, fmt='o')
+    ax.errorbar(mid_energy, auc_score[0], xerr=[de_min, de_max], fmt='o', color='tab:blue', label='train')
+    ax.errorbar(mid_energy, auc_score[1], xerr=[de_min, de_max], fmt='^', color='tab:orange', label='test')
     ax.set_xscale('log')
     ax.grid()
-    ax.set_xlim(energy_bins[0], energy_bins[-1])
-    ax.set_ylim(0.2, 1.2)
+    ax.legend()
+    ax.set_xlim(emin, emax)
+    ax.set_ylim(0.2, 1.0)
     ax.set_ylabel('AUC ROC')
     ax.set_xlabel('$E_{RECO}$ [TeV]')
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'roc_per_energy_bin_2.png'), facecolor='white', dpi=600)
+    plt.savefig(os.path.join(output_dir, 'roc_vs_energy.png'), facecolor='white', dpi=600)
+
+    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+    ax0.hist(dl2['train'][dl2['train']['mc_type'] == 0]['gammaness'], bins=100, label='$\gamma$', alpha=0.65)
+    ax0.hist(dl2['train'][dl2['train']['mc_type'] == 101]['gammaness'], bins=100, label='p', alpha=0.65)
+    ax0.legend(title='train')
+    ax0.set_xlabel('gammaness')
+
+    ax1.hist(dl2['test'][dl2['test']['mc_type'] == 0]['gammaness'], bins=100, label='$\gamma$', alpha=0.65)
+    ax1.hist(dl2['test'][dl2['test']['mc_type'] == 101]['gammaness'], bins=100, label='p', alpha=0.65)
+    ax1.legend(title='test')
+    ax1.set_xlabel('gammaness')
+
+    ax0.set_ylabel('Counts')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'gammaness.png'), facecolor='white', dpi=600)
 
     config = read_configuration_file(config_file)
     reg_features_names = config['regression_features']
@@ -516,14 +717,6 @@ def main():
     ax.set_xlabel('Importance')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'gh_class.png'), facecolor='white', dpi=600)
-
-    fig, ax = plt.subplots()
-    ax.hist(dl2[dl2['mc_type'] == 0]['gammaness'], bins=100, label='$\gamma$', alpha=0.65)
-    ax.hist(dl2[dl2['mc_type'] == 101]['gammaness'], bins=100, label='p', alpha=0.65)
-    ax.legend()
-    ax.set_xlabel('gammaness')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'gammaness.png'), facecolor='white', dpi=600)
 
 
 if __name__ == '__main__':
