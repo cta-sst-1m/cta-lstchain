@@ -13,7 +13,7 @@ You should run the scripts in the following order and wait for each step to conc
 
 4. get_rf_performance.sh
 
-5. mc_r0_to_dl1.sh
+5. mc_dl1_to_dl2.sh
 
 6. compute_sensitivity.sh
 
