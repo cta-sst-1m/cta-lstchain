@@ -21,13 +21,9 @@ cluster="itcluster"
 rf_type="standard"
 cam_key="dl1/event/telescope/parameters/LST_LSTCam"
 
-#percent_event_train=(30 50)
-#ARRAY_INTENSITY=(0 100 200)
-#ARRAY_LEAKAGE=(0.0 0.25 0.50 0.75 1.0)
-
-percent_event_train=(50)
-ARRAY_INTENSITY=(0)
-ARRAY_LEAKAGE=(1.0)
+percent_event_train=(30 50)
+ARRAY_INTENSITY=(0 100 200)
+ARRAY_LEAKAGE=(0.0 0.25 0.50 0.75 1.0)
 
 for percentage in "${percent_event_train[@]}"; do
 
@@ -37,8 +33,7 @@ for percentage in "${percent_event_train[@]}"; do
 
   working_dir="${path_to_lstchain}/lstchain/scripts/bash/rf_performance/${rf_type}/"
 
-  for folder in "mono-lst-sipm-pmma-3ns"; do
-#  for folder in "tag_nominal_LST_09_2020_v2" "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns" "mono-lst-sipm-borofloat-3ns" "mono-lst-sipm-borofloat-5ns" "mono-lst-sipm-borofloat-7ns"; do
+  for folder in "tag_nominal_LST_09_2020_v2" "mono-lst-sipm-pmma-3ns" "mono-lst-sipm-pmma-5ns" "mono-lst-sipm-pmma-7ns" "mono-lst-sipm-borofloat-3ns" "mono-lst-sipm-borofloat-5ns" "mono-lst-sipm-borofloat-7ns"; do
     for leakage in "${ARRAY_LEAKAGE[@]}"; do
       for intensity in "${ARRAY_INTENSITY[@]}"; do
 
