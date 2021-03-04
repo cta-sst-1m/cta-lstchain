@@ -212,6 +212,7 @@ def plot_features(data, intensity_cut, leakage_cut, r_cut, output_dir, true_part
     ax.hist(data[data[type_label] == 101]['time_gradient'], histtype=u'step', bins=100, label="p")
     ax.set_ylabel(r'Counts', fontsize=15)
     ax.set_xlabel(r"Time gradient []")
+    ax.set_yscale('log')
     ax.legend()
     plt.tight_layout()
     plt.savefig(output_dir + '/feat_time_gradient.png', facecolor='white', dpi=600)
@@ -270,6 +271,7 @@ def main():
         protons = filter_events(pd.read_hdf(dl1_proton, key=dl1_cam_key), config["events_filters"])
 
         data = pd.concat([gammas, protons], ignore_index=True)
+        print('{} set'.format(a_set))
         print('Before drop NaN : ', len(data))
         data = data.dropna()
         print('After drop NaN : ', len(data))
@@ -277,7 +279,6 @@ def main():
         dl2_data = dl1_to_dl2.apply_models(data, cls_gh, reg_energy, reg_disp_vector, custom_config=config)
         print('DL2 length : ', len(dl2_data))
 
-        write_dl2_dataframe(dl2_data, os.path.join(output_dir, 'dl2_{}.h5'.format(a_set)))
         dl2[a_set] = dl2_data
 
         del gammas, protons, dl2_data
@@ -288,6 +289,12 @@ def main():
     if len(selected_gammas_test) == 0 or len(selected_gammas_train) == 0:
         print('No gammas selected, outputs will not be produced')
         sys.exit()
+
+    if nbins is None:
+        irf = ctaplot.ana.irf_cta()
+        energy_bins = irf.E_bin
+    else:
+        energy_bins = np.logspace(np.log10(emin), np.log10(emax), nbins + 1)
 
     # Plot parameters
     for dataset in ['train', 'test']:
@@ -332,10 +339,12 @@ def main():
                                 points_outfile=os.path.join(output_dir, 'e_reso_{}.h5'.format(a_set)),
                                 plot_outfile=os.path.join(output_dir, 'e_reso_{}.png'.format(a_set))
                                 )
+        plt.close()
         plot_dl2.direction_results(dl2_data=selected_gammas,
                                    points_outfile=os.path.join(output_dir, 'ang_reso_{}.h5'.format(a_set)),
                                    plot_outfile=os.path.join(output_dir, 'ang_reso_{}.png'.format(a_set))
                                    )
+        plt.close()
 
     # Plot Energy migration
     fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(12, 6))
@@ -523,17 +532,17 @@ def main():
 
     for axs in [ax0, ax1]:
         axs.text(0.95, 0.09, 'train',
-                verticalalignment='bottom', horizontalalignment='right',
-                transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.5})
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=axs.transAxes, bbox={'facecolor': 'tab:blue', 'alpha': 0.65})
     for axs in [ax2, ax3]:
         axs.text(0.95, 0.09, 'test',
-                verticalalignment='bottom', horizontalalignment='right',
-                transform=axs.transAxes, bbox={'facecolor': 'white', 'alpha': 0.8})
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=axs.transAxes, bbox={'facecolor': 'tab:orange', 'alpha': 0.65})
     ax2.set_xlabel('$DISP_{MC}$ [m]')
     ax3.set_xlabel('$DISP_{MC}$ [m]')
     ax0.set_ylabel('$DISP_{RECO}$ [m]')
     ax2.set_ylabel('$DISP_{RECO}$ [m]')
-    ax0.set_title('DIPS dx')
+    ax0.set_title('DISP dx')
     ax1.set_title('DISP dy')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'disp_vector.png'), facecolor='white')
@@ -578,6 +587,8 @@ def main():
 
     ax0.legend()
     ax1.legend()
+    ax0.set_title('train')
+    ax1.set_title('test')
     ax0.set_xlabel('x [m]')
     ax1.set_xlabel('x [m]')
     ax0.set_ylabel('y [m]')
@@ -602,12 +613,7 @@ def main():
     plt.savefig(os.path.join(output_dir, 'roc.png'), facecolor='white', dpi=600)
     plt.close(fig)
 
-    if nbins is None:
-        irf = ctaplot.ana.irf_cta()
-        energy_bins = irf.E_bin
-    else:
-        energy_bins = np.logspace(np.log10(emin), np.log10(emax), nbins + 1)
-
+    # Plot ROC AUC curves
     fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(14, 7))
     ctaplot.plot_roc_curve_gammaness_per_energy(dl2['train'].mc_type,
                                                 dl2['train'].gammaness,
@@ -685,6 +691,66 @@ def main():
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'gammaness.png'), facecolor='white', dpi=600)
     plt.close(fig)
+
+    for share in [True, False]:
+        for a_set in ['train', 'test']:
+            fig, axs = plt.subplots(4, 5, sharex=True, sharey=share, figsize=(16, 7))
+            axss = axs.ravel()
+            df = dl2[a_set]
+            for k in range(len(energy_bins) - 1):
+                condition_energy = (df['reco_energy'] > energy_bins[k]) & (df['reco_energy'] <= energy_bins[k+1])
+                condition_is_gamma = df['mc_type'] == 0
+                condition_is_proton = df['mc_type'] == 101
+                condition_on_gamma = condition_energy & condition_is_gamma
+                condition_on_proton = condition_energy & condition_is_proton
+                axss[k].hist(df[condition_on_gamma]['gammaness'], bins=100, alpha=0.65,
+                             label=r'$\gamma$ : {}'.format(len(df[condition_on_gamma]['gammaness'])))
+                axss[k].hist(df[condition_on_proton]['gammaness'], bins=100, alpha=0.65,
+                             label='p : {}'.format(len(df[condition_on_proton]['gammaness'])))
+                lower_bin = np.round(energy_bins[k], decimals=2)
+                upper_bin = np.round(energy_bins[k + 1], decimals=2)
+                axss[k].legend(title='{} - {} TeV'.format(lower_bin, upper_bin), fontsize=8, title_fontsize=10)
+                axss[k].set_xlim(0.0 - 0.05, 1.0 + 0.05)
+                axss[k].set_xlabel('gammaness')
+            plt.tight_layout()
+            if share:
+                share_label = 'sharey_on'
+            else:
+                share_label = 'sharey_off'
+            plt.savefig(os.path.join(output_dir, 'gammaness_ereco_bin_{}_{}.png'.format(a_set, share_label)),
+                        facecolor='white', dpi=600)
+            plt.close(fig)
+
+    intensity_bins = np.linspace(np.min(df['log_intensity']), np.max(df['log_intensity']), 21)
+    for share in [True, False]:
+        for a_set in ['train', 'test']:
+            fig, axs = plt.subplots(4, 5, sharex=True, sharey=share, figsize=(16, 7))
+            axss = axs.ravel()
+            df = dl2[a_set]
+            for k in range(len(intensity_bins) - 1):
+                condition_intensity = (df['log_intensity'] > intensity_bins[k]) & (
+                        df['log_intensity'] <= intensity_bins[k + 1])
+                condition_is_gamma = df['mc_type'] == 0
+                condition_is_proton = df['mc_type'] == 101
+                condition_on_gamma = condition_intensity & condition_is_gamma
+                condition_on_proton = condition_intensity & condition_is_proton
+                axss[k].hist(df[condition_on_gamma]['gammaness'], bins=100, alpha=0.65,
+                             label=r'$\gamma$ : {}'.format(len(df[condition_on_gamma]['gammaness'])))
+                axss[k].hist(df[condition_on_proton]['gammaness'], bins=100, alpha=0.65,
+                             label='p : {}'.format(len(df[condition_on_proton]['gammaness'])))
+                lower_bin = np.round(intensity_bins[k], decimals=2)
+                upper_bin = np.round(intensity_bins[k + 1], decimals=2)
+                axss[k].legend(title=r'$10^{{{}}}$ - $10^{{{}}}$ pe'.format(lower_bin, upper_bin), fontsize=8, title_fontsize=10)
+                axss[k].set_xlabel('gammaness')
+                axss[k].set_xlim(0.0 - 0.05, 1.0 + 0.05)
+            plt.tight_layout()
+            if share:
+                share_label = 'sharey_on'
+            else:
+                share_label = 'sharey_off'
+            plt.savefig(os.path.join(output_dir, 'gammaness_log_intensity_bin_{}_{}.png'.format(a_set, share_label)),
+                        facecolor='white', dpi=600)
+            plt.close(fig)
 
     config = read_configuration_file(config_file)
     reg_features_names = config['regression_features']
