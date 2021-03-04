@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import logging
 import sys
 import os
 
@@ -10,34 +9,17 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from lstchain.io import standard_config, replace_config, read_configuration_file
-from lstchain.io.io import dl1_params_lstcam_key
 from lstchain.reco import dl1_to_dl2
 from lstchain.reco.utils import filter_events
 from lstchain.visualization import plot_dl2
-from lstchain.reco import utils
-from lstchain.io import standard_config, replace_config, read_configuration_file
-from lstchain.io.io import dl1_params_lstcam_key
 
 import ctaplot
-import astropy.units as u
-from astropy.table import QTable
 import joblib
-
-from lstchain.io.io import (
-    dl1_params_lstcam_key,
-    dl1_params_src_dep_lstcam_key,
-    dl1_images_lstcam_key,
-    dl2_params_lstcam_key,
-    read_dl2_to_pyirf
-)
 
 from lstchain.io import (
     read_configuration_file,
     standard_config,
     replace_config,
-    write_dl2_dataframe,
-    get_dataset_keys,
 )
 
 irf = ctaplot.irf_cta()

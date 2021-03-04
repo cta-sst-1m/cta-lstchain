@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --time=06:00:00
+#SBATCH --time=01:00:00
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=64G
 #SBATCH --partition=gpu,long,xxl
