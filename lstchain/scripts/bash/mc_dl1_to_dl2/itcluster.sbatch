@@ -19,8 +19,8 @@ source /fefs/aswg/software/virtual_env/anaconda3/bin/activate lst-dev
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
 
-conda activate sipm_lstchain.0.6.3_pyirf.0.3
-echo "conda activate sipm_lstchain.0.6.3_pyirf.0.3"
+conda activate sipm_lstchain.0.6.3
+echo "conda activate sipm_lstchain.0.6.3"
 
 new_config="$OUTPUT_FOLDER/${particle}.json"
 echo "new config file : $new_config"
