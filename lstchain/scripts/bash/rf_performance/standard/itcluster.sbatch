@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-#SBATCH --time=01:00:00
+#SBATCH --time=02:00:00
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=64G
-#SBATCH --partition=gpu,long,xxl
+#SBATCH --partition=short,long
 
 # script need following variables to be passed to sbatch:
 
@@ -22,6 +22,11 @@ conda activate sipm_lstchain.0.6.3
 echo "conda activate sipm_lstchain.0.6.3"
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
+now=$(date +"%T")
+echo "Current time : $now"
 
-echo lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder
-lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder
+echo lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder --nbins 20 --emin 0.01 --emax 100
+lstchain_unige_rf_performance --config_file $json_config_file --dl1_gamma_test $dl1_gamma_test --dl1_gamma_train $dl1_gamma_train --dl1_proton_test $dl1_proton_test --dl1_proton_train $dl1_proton_train --path_to_models $input_folder --dl1_cam_key $cam_key --output_dir $output_folder --nbins 20 --emin 0.01 --emax 100
+
+then=$(date +"%T")
+echo "Current time : $then"

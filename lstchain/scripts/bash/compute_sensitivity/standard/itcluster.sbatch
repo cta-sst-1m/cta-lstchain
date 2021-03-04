@@ -24,5 +24,11 @@ echo "conda activate sipm_lstchain.0.6.3"
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
 
+now=$(date +"%T")
+echo "Current time : $now"
+
 echo lstchain_unige_sensitivity --dl2_gamma_test $dl2_gamma_test --dl2_proton_test $dl2_proton_test --output_dir $output_dir --intensity_cut $intensity --leakage_cut $leakage --initial_gh_cut_efficiency $gammanes_preselector --max_gh_cut_efficiency $max_gammaness --magic_reference $magic_reference
 lstchain_unige_sensitivity --dl2_gamma_test $dl2_gamma_test --dl2_proton_test $dl2_proton_test --output_dir $output_dir --intensity_cut $intensity --leakage_cut $leakage --initial_gh_cut_efficiency $gammanes_preselector --max_gh_cut_efficiency $max_gammaness --magic_reference $magic_reference
+
+then=$(date +"%T")
+echo "Current time : $then"

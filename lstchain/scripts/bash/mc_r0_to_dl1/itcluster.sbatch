@@ -40,7 +40,14 @@ for i in $(seq $first_job $last_job); do
         echo "$output_file exists, skipping conversion to DL1"
         exit 0
     fi
+
+    now=$(date +"%T")
+    echo "Current time : $now"
+
     echo "lstchain_mc_r0_to_dl1 --input-file $simtel_file --output-dir $h5_dir --config $json_config_file"
     lstchain_mc_r0_to_dl1 --input-file $simtel_file --output-dir $h5_dir --config $json_config_file
+
+    then=$(date +"%T")
+    echo "Current time : $then"
 
 done

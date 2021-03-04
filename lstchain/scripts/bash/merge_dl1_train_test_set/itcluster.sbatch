@@ -15,7 +15,12 @@ echo "conda activate sipm_lstchain.0.6.3"
 
 echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* "
 
+now=$(date +"%T")
+echo "Current time : $now"
+
 echo "lstchain_merge_hdf5_files --input-dir $run_dir --output-file $merged_file --smart False --no-image True &> ${merged_file/.h5/.out}"
 lstchain_merge_hdf5_files --input-dir $run_dir --output-file $merged_file --smart False --no-image True &> ${merged_file/.h5/.out}
 
+then=$(date +"%T")
+echo "Current time : $then"
 
