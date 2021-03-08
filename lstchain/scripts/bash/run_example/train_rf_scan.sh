@@ -20,11 +20,10 @@ lstchain_version="0.6.3"
 path_to_lstchain="/home/david.miranda/software/cta-sipm-lstchain_v.${lstchain_version}"
 cluster="itcluster"
 rf_type="standard"
-cam_key="dl1/event/telescope/parameters/LST_LSTCam"
 
 percent_event_train=(30 50)
-ARRAY_INTENSITY=(0 100 200)
-ARRAY_LEAKAGE=(0.0 0.25 0.50 0.75 1.0)
+ARRAY_INTENSITY=(0)
+ARRAY_LEAKAGE=(1.0)
 
 for percentage in "${percent_event_train[@]}"; do
 
@@ -48,13 +47,12 @@ for percentage in "${percent_event_train[@]}"; do
           json_config_file="/fefs/home/david.miranda/software/cta-sipm-lstchain_v.${lstchain_version}/lstchain/data/sipm_cam.json"
         fi
 
-        bash ${working_dir}/train_rf.sh "${input_folder}" "${output_folder}" "${json_config_file}" "${cam_key}" "${intensity}" "${leakage}" "${production_name}" "${working_dir}" "${cluster}"
+        bash ${working_dir}/train_rf.sh "${input_folder}" "${output_folder}" "${json_config_file}" "${intensity}" "${leakage}" "${production_name}" "${working_dir}" "${cluster}"
         sleep 0.1
 
         echo ${input_folder}
         echo ${output_folder}
         echo ${json_config_file}
-        echo ${cam_key}
         echo ${intensity}
         echo ${leakage}
         echo ${production_name}

@@ -24,8 +24,8 @@ echo " *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 now=$(date +"%T")
 echo "Current time : $now"
 
-echo "lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE"
-lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --cam_key $DL1_PARAMS_CAMERA_KEY --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE
+echo "lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE"
+lstchain_unige_training --input-file-gamma $GAMMAFILE --input-file-proton $PROTONFILE --output-dir $PATH_MODELS --config $CONFIG_FILE --intensity $INTENSITY --leakage_intensity_width_2 $LEAKAGE
 
 then=$(date +"%T")
 echo "Current time : $then"

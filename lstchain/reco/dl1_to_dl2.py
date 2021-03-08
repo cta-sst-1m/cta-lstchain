@@ -63,7 +63,7 @@ def train_energy(train, custom_config={}):
 
     reg = model(**regression_args)
     reg.fit(train[features],
-                  train['log_mc_energy'], sample_weight=train['mc_energy']**2)
+                  train['log_mc_energy'])
 
     print("Model {} trained!".format(model))
     return reg
@@ -97,7 +97,7 @@ def train_disp_vector(train, custom_config={}, predict_features=['disp_dx', 'dis
     reg = model(**regression_args)
     x = train[features]
     y = np.transpose([train[f] for f in predict_features])
-    reg.fit(x, y, sample_weight=train['mc_energy']**2)
+    reg.fit(x, y)
 
     print("Model {} trained!".format(model))
 
@@ -130,7 +130,7 @@ def train_disp_norm(train, custom_config={}, predict_feature='disp_norm'):
     reg = model(**regression_args)
     x = train[features]
     y = np.transpose(train[predict_feature])
-    reg.fit(x, y, sample_weight=train['mc_energy']**2)
+    reg.fit(x, y)
 
     print("Model {} trained!".format(model))
 
@@ -236,11 +236,9 @@ def train_sep(train, custom_config={}):
     features = config["classification_features"]
     model = RandomForestClassifier
 
-
     print("Given features: ", features)
     print("Number of events for training: ", train.shape[0])
-    print("Training Random Forest Classifier for",
-    "Gamma/Hadron separation...")
+    print("Training Random Forest Classifier for", "Gamma/Hadron separation...")
 
     clf = model(**classification_args)
 
@@ -255,7 +253,6 @@ def build_models(filegammas, fileprotons,
                  energy_min=-np.inf,
                  custom_config={},
                  test_size=0.2,
-                 dl1_params_camera_key=dl1_params_lstcam_key
                  ):
     """Uses MC data to train Random Forests for Energy and disp_norm
     reconstruction and G/H separation. Returns 3 trained RF.
@@ -302,8 +299,8 @@ def build_models(filegammas, fileprotons,
     config = replace_config(standard_config, custom_config)
     events_filters = config["events_filters"]
 
-    df_gamma = pd.read_hdf(filegammas, key=dl1_params_camera_key)
-    df_proton = pd.read_hdf(fileprotons, key=dl1_params_camera_key)
+    df_gamma = pd.read_hdf(filegammas, key=dl1_params_lstcam_key)
+    df_proton = pd.read_hdf(fileprotons, key=dl1_params_lstcam_key)
 
     if config['source_dependent']:
         df_gamma = pd.concat([df_gamma, pd.read_hdf(filegammas, key=dl1_params_src_dep_lstcam_key)], axis=1)
@@ -319,24 +316,34 @@ def build_models(filegammas, fileprotons,
                                     finite_params=config['regression_features'] + config['classification_features'],
                                     )
 
+    init_size = 0.80
+    df_gamma_train, df_gamma_test = train_test_split(df_gamma, train_size=init_size, shuffle=True)
+    df_proton_train, df_proton_test = train_test_split(df_proton, train_size=init_size, shuffle=True)
+
+    df_gamma_train = df_gamma_train.reset_index(drop=True)
+    df_gamma_test = df_gamma_test.reset_index(drop=True)
+    df_proton_train = df_proton_train.reset_index(drop=True)
+    df_proton_test = df_proton_test.reset_index(drop=True)
+
+    # Save data sets for training and testing
+    df_gamma_train.to_hdf(os.path.join(path_models, 'gamma_train.h5'), key=dl1_params_lstcam_key, format='table')
+    df_gamma_test.to_hdf(os.path.join(path_models, 'gamma_test.h5'), key=dl1_params_lstcam_key)
+    df_proton_train.to_hdf(os.path.join(path_models, 'proton_train.h5'), key=dl1_params_lstcam_key)
+    df_proton_test.to_hdf(os.path.join(path_models, 'proton_test.h5'), key=dl1_params_lstcam_key)
 
     #Train regressors for energy and disp_norm reconstruction, only with gammas
 
-    reg_energy = train_energy(df_gamma, custom_config=config)
-
-    reg_disp_vector = train_disp_vector(df_gamma, custom_config=config)
+    reg_energy = train_energy(df_gamma_train, custom_config=config)
+    reg_disp_vector = train_disp_vector(df_gamma_train, custom_config=config)
 
     #Train classifier for gamma/hadron separation.
-
-    train, testg = train_test_split(df_gamma, test_size=test_size)
-    test = testg.append(df_proton, ignore_index=True)
+    train, testg = train_test_split(df_gamma_train, test_size=test_size)
+    test = testg.append(df_proton_train, ignore_index=True)
 
     temp_reg_energy = train_energy(train, custom_config=config)
-
     temp_reg_disp_vector = train_disp_vector(train, custom_config=config)
 
-    #Apply the regressors to the test set
-
+    # Apply the regressors to the test set
     test['log_reco_energy'] = temp_reg_energy.predict(test[config['regression_features']])
     disp_vector = temp_reg_disp_vector.predict(test[config['regression_features']])
     test['reco_disp_dx'] = disp_vector[:, 0]
@@ -392,6 +399,7 @@ def apply_models(dl1, classifier, reg_energy, reg_disp_vector, custom_config={})
 
     regression_features = config["regression_features"]
     classification_features = config["classification_features"]
+
     #Reconstruction of Energy and disp_norm distance
     dl2['log_reco_energy'] = reg_energy.predict(dl2[regression_features])
     dl2['reco_energy'] = 10**(dl2['log_reco_energy'])
