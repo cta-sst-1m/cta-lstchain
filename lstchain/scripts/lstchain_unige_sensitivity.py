@@ -465,6 +465,13 @@ def main():
                                       background_radius=max_bkg_radius)
 
     sensitivity = calculate_sensitivity(signal_hist=gamma_hist, background_hist=proton_hist, alpha=alpha)
+
+    # Comment about the errors : This is an error estimate, taking into account what the sensitivity would be for the
+    # lower bound of a given energy bin, and the same for the upper bound. In addition, we will take the worse
+    # sensitivity and each boundary.
+    # So the best sensitivity (lower sensitivity error) would be the one with the best signal (upper signal) but
+    # worst background (lower background). While the worst sensitivity (upper sensitivity error) would be the one with
+    # the worse signal (lower signal) and the best background (upper background)
     sensitivity = compute_error(sensitivity=sensitivity,
                                 signal=gamma_hist,
                                 background=proton_hist,

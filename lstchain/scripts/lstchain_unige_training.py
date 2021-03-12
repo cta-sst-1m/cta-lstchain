@@ -37,12 +37,6 @@ parser.add_argument('--config', '-c', action='store', type=str,
                     default=None
                     )
 
-parser.add_argument('--cam_key', '-k', action='store', type=str,
-                    dest='dl1_params_camera_key',
-                    help='key to the camera table in the hdf5 files.',
-                    default=dl1_params_lstcam_key
-                    )
-
 parser.add_argument('--intensity', '-i', action='store', type=float,
                     dest='intensity',
                     help='minimum intensity that could be applied',
@@ -153,9 +147,7 @@ def main():
                             save_models=args.storerf,
                             path_models=args.path_models,
                             custom_config=config,
-                            dl1_params_camera_key=args.dl1_params_camera_key
                             )
-
 
 
 if __name__ == '__main__':

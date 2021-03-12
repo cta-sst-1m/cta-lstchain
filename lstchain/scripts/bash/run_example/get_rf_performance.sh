@@ -21,9 +21,12 @@ cluster="itcluster"
 rf_type="standard"
 cam_key="dl1/event/telescope/parameters/LST_LSTCam"
 
+# This values was configurable to see if the split percentage has a impact in the performances of the RF training
+ptag=80
+
 percent_event_train=(30 50)
-ARRAY_INTENSITY=(0 100 200)
-ARRAY_LEAKAGE=(0.0 0.25 0.50 0.75 1.0)
+ARRAY_INTENSITY=(0)
+ARRAY_LEAKAGE=(1.0)
 
 for percentage in "${percent_event_train[@]}"; do
 
@@ -37,9 +40,9 @@ for percentage in "${percent_event_train[@]}"; do
     for leakage in "${ARRAY_LEAKAGE[@]}"; do
       for intensity in "${ARRAY_INTENSITY[@]}"; do
 
-        input_folder="/fefs/aswg/workspace/david.miranda/data/prod5/rf/lstchain_v.${lstchain_version}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
-        output_folder="/fefs/aswg/workspace/david.miranda/data/prod5/rf_performances/lstchain_v.${lstchain_version}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
-        production_name="Prod5_${folder}_with_lstchain_v.${lstchain_version}_leak_${leakage}_intensity_${intensity}"
+        input_folder="/fefs/aswg/workspace/david.miranda/data/prod5/rf/lstchain_v.${lstchain_version}_${ptag}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
+        output_folder="/fefs/aswg/workspace/david.miranda/data/prod5/rf_performances/lstchain_v.${lstchain_version}_${ptag}/${folder}/${split_tag}/${rf_type}/intensity_${intensity}_leakage_${leakage}/"
+        production_name="Prod5_${folder}_with_lstchain_v.${lstchain_version}_leak_${leakage}_intensity_${intensity}_${ptag}"
 
         if [[ "${folder}" == "tag_nominal_LST_09_2020_v2" ]]; then
           json_config_file="/fefs/home/david.miranda/software/cta-lstchain_v.${lstchain_version}/lstchain/data/pmt_cam.json"
@@ -47,10 +50,10 @@ for percentage in "${percent_event_train[@]}"; do
           json_config_file="/fefs/home/david.miranda/software/cta-lstchain_v.${lstchain_version}/lstchain/data/sipm_cam.json"
         fi
 
-        dl1_gamma_train="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}/dl1_gamma_diffuse_merge_train.h5"
-        dl1_gamma_test="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}/dl1_gamma_on_merge_test.h5"
-        dl1_proton_train="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}/dl1_proton_merge_train.h5"
-        dl1_proton_test="/fefs/aswg/workspace/david.miranda/data/prod5/dl1_merged/lstchain_v.${lstchain_version}/${folder}/${split_tag}/dl1_proton_merge_test.h5"
+        dl1_gamma_train="${input_folder}/gamma_train.h5"
+        dl1_gamma_test="${input_folder}/gamma_test.h5"
+        dl1_proton_train="${input_folder}/proton_train.h5"
+        dl1_proton_test="${input_folder}/proton_test.h5"
 
         bash ${working_dir}/rf_performance.sh "${input_folder}" "${output_folder}" "${json_config_file}" "${dl1_gamma_train}" "${dl1_proton_train}" "${dl1_gamma_test}" "${dl1_proton_test}" "${cam_key}" "${intensity}" "${leakage}" "${production_name}" "${working_dir}" "${cluster}"
         sleep 0.1

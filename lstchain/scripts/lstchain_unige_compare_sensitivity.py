@@ -335,8 +335,8 @@ def main():
     df_gamma = []
     df_proton = []
 
-    if len(df_gamma) != len(df_gamma):
-        print('gamma tables and proton table must have the same size')
+    if len(input_files) != len(labels):
+        print('There must be a label for each input')
         exit()
 
     for i, file in enumerate(input_files):
